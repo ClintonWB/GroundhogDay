@@ -25,7 +25,7 @@ td{
 Board = function Board(width,height){
   this.width = width;
   this.height = height;
-  this.axes = [...Array(height)].map(e => Array(width));
+  this.axes = [...Array(height)].map(e => Array(width).fill(''));
 }
 
 Board.prototype.render = function render(){
@@ -44,8 +44,12 @@ Board.prototype.render = function render(){
       }
       clickhandlerfactory = function(i,j,board){
         return function(){
-          board.axes[j][i] = 'r'
-        }.bind()
+          if(board.axes[j][i] === 'r'){
+            board.axes[j][i] = '';
+          } else if (board.axes[j][i] === ''){
+            board.axes[j][i] = 'r'
+          }
+        }
       }
       td.bind("click",clickhandlerfactory(i,j,this))
       tr.append(td)
