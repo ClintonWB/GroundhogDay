@@ -4,15 +4,76 @@
 <title>Demo Hog Movement</title>
 </head>
 
-<style>
-
+<style type="text/css">
+td{
+  color:white;
+  background-color:black;
+  width:1em;
+  height:1em;
+  text-align:center;
+}
 </style>
+
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
+
+</script>
 <script type="text/javascript">
+
+Board = function Board(width,height){
+  this.width = width;
+  this.height = height;
+  this.axes = [...Array(height)].map(e => Array(width));
+}
+
+Board.prototype.render = function render(){
+  var board_container = $("#board_container")
+  var board_table = $("<table>")
+  for (i=0;i<this.height;i++){
+    var tr = $("<tr>")
+    for (j=0;j<this.width;j++){
+      var td = $("<td>")
+      var element = this.axes[i][j];
+      if (element instanceof Flan){
+        td.text(arrows[element.direction]);
+      } else {
+        td.text(element)
+      }
+      tr.append(td)
+    }
+    board_table.append(tr)
+  }
+  board_container.empty()
+  board_container.append(board_table)
+}
+
+
+arrows = {
+  "N":"↑",
+  "E":"→",
+  "W":"←",
+  "S":"↓"
+}
+
+Flan = function Flan(board,x,y,direction){
+  this.x = x;
+  this.y = y;
+  this.direction = direction;
+  this.board = board;
+  this.board.axes[x][y] = this;
+}
+
+b = new Board(5,5);
+
+new Flan(b,2,2,"N");
+
+$(function(){b.render()})
 
 </script>
 
 <body>
- 
+ <div id="board_container">
+
+ </div>
 </body>
 
 </html>
