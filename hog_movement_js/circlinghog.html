@@ -31,9 +31,9 @@ Board = function Board(width,height){
 Board.prototype.render = function render(){
   var board_container = $("#board_container")
   var board_table = $("<table>")
-  for (i=this.height-1;i>=0;i--){
+  for (var i=this.height-1;i>=0;i--){
     var tr = $("<tr>")
-    for (j=0;j<this.width;j++){
+    for (var j=0;j<this.width;j++){
       var td = $("<td>")
       var element = this.axes[j][i];
       if (element instanceof Flan){
@@ -42,7 +42,12 @@ Board.prototype.render = function render(){
       } else if (element === "r") {
         td.addClass("road")
       }
-      td.bind("click",(function(){this.toggleClass("road")}).bind(td))
+      clickhandlerfactory = function(i,j,board){
+        return function(){
+          board.axes[j][i] = 'r'
+        }.bind()
+      }
+      td.bind("click",clickhandlerfactory(i,j,this))
       tr.append(td)
     }
     board_table.append(tr)
@@ -104,7 +109,10 @@ b.axes[3][2]="r";
 
 f = new Flan(b,2,2,"N");
 
-$(function(){b.render()})
+setInterval(function(){
+  f.step()
+  b.render()
+  },500)
 
 
 
