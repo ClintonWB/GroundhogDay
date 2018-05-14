@@ -42,6 +42,7 @@ Board.prototype.render = function render(){
       } else if (element === "r") {
         td.addClass("road")
       }
+      td.bind("click",(function(){this.toggleClass("road")}).bind(td))
       tr.append(td)
     }
     board_table.append(tr)
