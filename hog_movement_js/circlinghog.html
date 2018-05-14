@@ -12,6 +12,9 @@ td{
   height:1em;
   text-align:center;
 }
+.road{
+  background-color:darkred;
+}
 </style>
 
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
@@ -28,15 +31,16 @@ Board = function Board(width,height){
 Board.prototype.render = function render(){
   var board_container = $("#board_container")
   var board_table = $("<table>")
-  for (i=0;i<this.height;i++){
+  for (i=this.height-1;i>=0;i--){
     var tr = $("<tr>")
     for (j=0;j<this.width;j++){
       var td = $("<td>")
-      var element = this.axes[i][j];
+      var element = this.axes[j][i];
       if (element instanceof Flan){
         td.text(arrows[element.direction]);
-      } else {
-        td.text(element)
+        td.addClass("road")
+      } else if (element === "r") {
+        td.addClass("road")
       }
       tr.append(td)
     }
@@ -62,11 +66,46 @@ Flan = function Flan(board,x,y,direction){
   this.board.axes[x][y] = this;
 }
 
+function mod(m,n){
+  return (m%n + n)%n;
+}
+
+Flan.prototype.step = function step(){
+  adjacents = [[mod(this.x+1,this.board.width),this.y],
+               [this.x,mod(this.y-1,this.board.height)],
+               [mod(this.x-1,this.board.width),this.y],
+               [this.x,mod(this.y+1,this.board.height)]];
+
+  forwardindex = {"E":0,
+                  "S":1,
+                  "W":2,
+                  "N":3}[this.direction]
+  
+  adjacents.push.apply(adjacents, adjacents.splice(0,forwardindex))
+
+  for (i=0;i<4;i++){
+    var newx = adjacents[i][0];
+    var newy = adjacents[i][1];
+    if (this.board.axes[newx][newy] === 'r'){
+      this.board.axes[this.x][this.y] = 'r'
+      this.x = newx;
+      this.y = newy;
+      this.board.axes[newx][newy] = this;
+      break;
+    }
+  }
+}
+
 b = new Board(5,5);
 
-new Flan(b,2,2,"N");
+b.axes[2][1]="r";
+b.axes[3][2]="r";
+
+f = new Flan(b,2,2,"N");
 
 $(function(){b.render()})
+
+
 
 </script>
 
