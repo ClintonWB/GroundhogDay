@@ -94,9 +94,12 @@ Flan.prototype.step = function step(){
   adjacents.push.apply(adjacents, adjacents.splice(0,forwardindex))
 
   for (i=0;i<4;i++){
+    if (i === 2) {
+      continue
+    };
     var newx = adjacents[i][0];
     var newy = adjacents[i][1];
-    if (this.board.axes[newx][newy] === 'r' && (i != 2)){
+    if (this.board.axes[newx][newy] === 'r'){
       this.board.axes[this.x][this.y] = 'r'
       this.x = newx;
       this.y = newy;
@@ -124,9 +127,13 @@ b.axes[2][3]="r";
 b.axes[2][4]="r";
 
 f = new Flan(b,2,2,"N");
+//f2= new Flan(b,2,1,"W");
+//f3= new Flan(b,1,1,"W");
 
 setInterval(function(){
   f.step()
+//  f2.step()
+//  f3.step()
   b.render()
   },500)
 
