@@ -74,11 +74,39 @@ Flan = function Flan(board,x,y,direction){
   this.direction = direction;
   this.board = board;
   this.board.axes[x][y] = this;
+  this.is_waiting = false;
 }
 
 function mod(m,n){
   return (m%n + n)%n;
 }
+
+//Since there are many times when a flan needs to 
+//work in its own coordinate system, it makes sense
+//to have a function to translate.
+
+//I want to be able to rotate a vector.
+//This function rotates a vector (x,y) "n" steps clockwise.
+function rotate(x,y,n){
+  n = mod(n,4);
+  for(var i=0;i<n;i++){
+    var temp=y;
+    y=-x;
+    x=temp;
+  }
+  var obj = {
+    x:x,
+    y:y
+  };
+  return obj;
+}
+
+//These functions give the absolute coordinates of a 
+//space that is "right" spaces to the right and "ahead" spaces
+//ahead from the flan.
+/*Flan.prototype.local2absolute.x = function local2absolute(right,ahead){
+  
+}*/
 
 Flan.prototype.step = function step(){
   adjacents = [[mod(this.x+1,this.board.width),this.y],
@@ -93,14 +121,14 @@ Flan.prototype.step = function step(){
   
   adjacents.push.apply(adjacents, adjacents.splice(0,forwardindex))
 
-  for (i=0;i<4;i++){
+  for (var i=0;i<4;i++){
     if (i === 2) {
-      continue
-    };
+      continue;
+    }
     var newx = adjacents[i][0];
     var newy = adjacents[i][1];
     if (this.board.axes[newx][newy] === 'r'){
-      this.board.axes[this.x][this.y] = 'r'
+      this.board.axes[this.x][this.y] = 'r';
       this.x = newx;
       this.y = newy;
       this.board.axes[newx][newy] = this;
@@ -126,15 +154,15 @@ b.axes[1][4]="r";
 b.axes[2][3]="r";
 b.axes[2][4]="r";
 
-f = new Flan(b,2,2,"N");
-//f2= new Flan(b,2,1,"W");
-//f3= new Flan(b,1,1,"W");
+f = [];
+f[0] = new Flan(b,2,2,"N");
+f[1] = new Flan(b,2,1,"W");
 
 setInterval(function(){
-  f.step()
-//  f2.step()
-//  f3.step()
-  b.render()
+  for (var i=0 ; i<2 ; i++) {
+    f[i].step();
+  }
+  b.render();
   },500)
 
 
