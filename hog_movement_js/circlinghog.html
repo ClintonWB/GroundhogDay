@@ -74,7 +74,6 @@ Flan = function Flan(board,x,y,direction){
   this.direction = direction;
   this.board = board;
   this.board.axes[x][y] = this;
-  this.is_waiting = false;
 }
 
 function mod(m,n){
@@ -101,12 +100,46 @@ function rotate(x,y,n){
   return obj;
 }
 
-//These functions give the absolute coordinates of a 
+//This function gives the absolute coordinates of a 
 //space that is "right" spaces to the right and "ahead" spaces
 //ahead from the flan.
-/*Flan.prototype.local2absolute.x = function local2absolute(right,ahead){
-  
-}*/
+Flan.prototype.local2absolute = function local2absolute(right,ahead){
+  var turns = {"N":0,
+           "E":1,
+           "S":2,
+           "W":3}[this.direction];
+  var shift = rotate(right,ahead,turns);
+  var x = this.x + shift.x;
+  var y = this.y + shift.y;
+  x=mod(x,this.board.width);
+  y=mod(y,this.board.height);
+  var obj ={
+    x:x,
+    y:y
+  };
+  return obj;
+}
+
+//This function gives the local coordinates of a point (x,y)
+//in terms of the number of spaces "right" and "ahead" of the flan
+Flan.prototype.absolute2local = function absolute2local(x,y){
+  x=mod(x,this.board.width);
+  y=mod(y,this.board.height);
+  var shift={
+    x: x-this.x,
+    y: y-this.y
+  };
+  var turns = {"N":0,
+           "E":1,
+           "S":2,
+           "W":3}[this.direction];
+  var locals = rotate(shift.x,shift.y,-turns);
+  var obj ={
+    right:locals.x,
+    ahead:locals.y
+  };
+  return obj;
+}
 
 Flan.prototype.step = function step(){
   adjacents = [[mod(this.x+1,this.board.width),this.y],
@@ -141,7 +174,7 @@ Flan.prototype.step = function step(){
   }
 }
 
-b = new Board(5,5);
+b = new Board(5,6);
 
 b.axes[2][1]="r";
 b.axes[3][2]="r";
