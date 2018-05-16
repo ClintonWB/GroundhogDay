@@ -61,15 +61,6 @@ Board.prototype.render = function render(){
     var tr = $("<tr>")
     for (var j=0;j<this.width;j++){
       var td = $("<td>")
-      /*
-      var element = this.axes[j][i].floor;
-      if (element instanceof Flan){
-        td.text(arrows[element.direction]);
-        td.addClass("road")
-      } else if (element === "r") {
-        td.addClass("road")
-      }
-      */
       if (this.axes[j][i].floor === "r") {
         td.addClass("road")
       }
@@ -227,9 +218,11 @@ b.axes[2][2].floor="r";
 f = [];
 f[0] = new Flan(b,2,2,"N");
 f[1] = new Flan(b,2,1,"W");
+f[2] = new Flan(b,1,4,"E");
+f[3] = new Flan(b,1,4,"E");
 
 setInterval(function(){
-  for (var i=0 ; i<2 ; i++) {
+  for (var i=0 ; i<f.length ; i++) {
     f[i].step();
   }
   b.render();
