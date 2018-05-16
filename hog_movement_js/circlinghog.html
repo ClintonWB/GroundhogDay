@@ -28,6 +28,19 @@ Tile = function Tile(board, x, y, floor){
   this.y = y;
   this.floor = floor;
   this.flans = [];
+  this.appearance = function appearance(){
+    var string='';
+    for (let flan of this.flans){
+      string+=flan.appearance();
+    };
+    return string;
+  }
+  this.remove_flan = function remove_flan(flan){
+    var index = this.flans.indexOf(flan);
+    if (index > -1) {
+      this.flans.splice(index,1);
+    };
+  }
 }
 
 Board = function Board(width,height){
@@ -48,6 +61,7 @@ Board.prototype.render = function render(){
     var tr = $("<tr>")
     for (var j=0;j<this.width;j++){
       var td = $("<td>")
+      /*
       var element = this.axes[j][i].floor;
       if (element instanceof Flan){
         td.text(arrows[element.direction]);
@@ -55,6 +69,12 @@ Board.prototype.render = function render(){
       } else if (element === "r") {
         td.addClass("road")
       }
+      */
+      if (this.axes[j][i].floor === "r") {
+        td.addClass("road")
+      }
+      td.text(this.axes[j][i].appearance());
+
       clickhandlerfactory = function(i,j,board){
         return function(){
           if(board.axes[j][i].floor === 'r'){
@@ -86,7 +106,7 @@ Flan = function Flan(board,x,y,direction){
   this.y = y;
   this.direction = direction;
   this.board = board;
-  this.board.axes[x][y].floor = this; //we need to lift the flans off the floor
+  this.board.axes[x][y].flans.push(this);
   this.appearance = function appearance(){
     return arrows[this.direction];
   };
@@ -177,10 +197,10 @@ Flan.prototype.step = function step(){
     var newx = adjacents[i][0];
     var newy = adjacents[i][1];
     if (this.board.axes[newx][newy].floor === 'r'){
-      this.board.axes[this.x][this.y].floor = 'r';
+      this.board.axes[this.x][this.y].remove_flan(this);
       this.x = newx;
       this.y = newy;
-      this.board.axes[newx][newy].floor = this;
+      this.board.axes[newx][newy].flans.push(this);
       this.direction = {0:"E",
                         1:"S",
                         2:"W",
@@ -202,6 +222,7 @@ b.axes[1][3].floor="r";
 b.axes[1][4].floor="r";
 b.axes[2][3].floor="r";
 b.axes[2][4].floor="r";
+b.axes[2][2].floor="r";
 
 f = [];
 f[0] = new Flan(b,2,2,"N");
