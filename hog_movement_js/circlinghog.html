@@ -97,10 +97,64 @@ Flan = function Flan(board,x,y,direction){
   this.y = y;
   this.direction = direction;
   this.board = board;
-  this.board.axes[x][y].flans.push(this);
+  this.tile = function tile(){
+    return this.board.axes[this.x][this.y];
+  }
+  this.tile().flans.push(this);
   this.appearance = function appearance(){
     return arrows[this.direction];
   };
+  this.move = function move(move_direction){
+    this.board.axes[this.x][this.y].remove_flan(this);
+    switch(move_direction){
+      case "N":
+        this.y += 1;
+        break;
+      case "E":
+        this.x += 1;
+        break;
+      case "W":
+        this.x -= 1;
+        break;
+      case "S":
+        this.y -= 1;
+    }
+    this.x = mod(this.x,this.board.width);
+    this.y = mod(this.y,this.board.height);
+    this.direction = move_direction;
+    this.tile().flans.push(this);
+  };
+  this.neighbor_tiles = function neighbor_tiles(){
+    left_coords = this.local2absolute(-1,0);
+    right_coords = this.local2absolute(1,0);
+    front_coords = this.local2absolute(0,1);
+    back_coords = this.local2absolute(0,-1);
+    var obj = {
+      left: this.board.axes[left_coords.x][left_coords.y],
+      right: this.board.axes[right_coords.x][right_coords.y],
+      front: this.board.axes[front_coords.x][front_coords.y],
+      back: this.board.axes[back_coords.x][back_coords.y]
+    };
+    return obj;
+  }
+  this.right = function right(){
+    return {"N":"E",
+            "E":"S",
+            "S":"W",
+            "W":"N"}[this.direction]
+  }
+  this.left = function left(){
+    return {"N":"W",
+            "W":"S",
+            "S":"E",
+            "E":"N"}[this.direction]
+  }
+  this.back = function back(){
+    return {"N":"S",
+            "S":"N",
+            "W":"E",
+            "E":"W"}[this.direction]
+  }
 }
 
 function mod(m,n){
@@ -168,6 +222,7 @@ Flan.prototype.absolute2local = function absolute2local(x,y){
   return obj;
 }
 
+/*
 Flan.prototype.step = function step(){
   adjacents = [[mod(this.x+1,this.board.width),this.y],
                [this.x,mod(this.y-1,this.board.height)],
@@ -188,6 +243,13 @@ Flan.prototype.step = function step(){
     var newx = adjacents[i][0];
     var newy = adjacents[i][1];
     if (this.board.axes[newx][newy].floor === 'r'){
+      this.move(
+        {0:"E",
+         1:"S",
+         2:"W",
+         3:"N"}[mod(i+forwardindex,4)]
+      )
+      /*
       this.board.axes[this.x][this.y].remove_flan(this);
       this.x = newx;
       this.y = newy;
@@ -196,8 +258,21 @@ Flan.prototype.step = function step(){
                         1:"S",
                         2:"W",
                         3:"N"}[mod(i+forwardindex,4)];
+      *//*
       break;
     }
+  }
+}
+*/
+
+Flan.prototype.dumb_step = function dumb_step(){
+  neighbors = this.neighbor_tiles();
+  if (neighbors.front.floor === 'r'){
+    this.move(this.direction);
+  } else if (neighbors.right.floor === 'r'){
+    this.move(this.right());
+  } else if (neighbors.left.floor === 'r'){
+    this.move(this.left())
   }
 }
 
@@ -223,7 +298,7 @@ f[3] = new Flan(b,1,4,"E");
 
 setInterval(function(){
   for (var i=0 ; i<f.length ; i++) {
-    f[i].step();
+    f[i].dumb_step();
   }
   b.render();
   },500)
