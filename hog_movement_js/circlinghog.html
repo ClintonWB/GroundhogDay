@@ -258,11 +258,11 @@ Flan = function Flan(board,x,y,direction){
         this.has_stepped = true;
         return;
       }
-      if (this.has_been_stepped_into){ //we were the at the end of a loop. Get a move on.
-        this.move();
-        this.has_stepped = true;
-        return; 
-      }
+      //if (this.has_been_stepped_into()){ //we were the at the end of a loop. Get a move on.
+      //  this.move();
+      //  this.has_stepped = true;
+      //  return; 
+      //}
       if (this.flan_competing_for_t()){ //let another flan into the procession. Stop.
         this.flan_competing_for_t().step();
         this.has_stepped = true;
@@ -284,16 +284,16 @@ Flan = function Flan(board,x,y,direction){
     this.has_stepped = true;
     return;
   }
-  this.has_been_stepped_into = function has_been_stepped_into(){
-    var counter = 0;
-    for (let flan of this.tile().flans){
-      if (flan.going() === this.going()){
-        counter++;
-      };
-    };
-    if (counter>1) return true;
-    return false;    
-  }
+  //this.has_been_stepped_into = function has_been_stepped_into(){
+  //  var counter = 0;
+  //  for (let flan of this.tile().flans){
+  //    if (flan.going() === this.going()){
+  //      counter++;
+  //    };
+  //  };
+  //  if (counter>1) return true;
+  //  return false;    
+  //}
 }
 
 function mod(m,n){
