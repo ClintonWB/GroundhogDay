@@ -141,6 +141,7 @@ Flan = function Flan(board,x,y,direction){
   this.board = board;
   this.has_stepped = false;
   this.is_waiting = false;
+  this.decorator = '';
   //change other variables upon creation
   this.board.flans.push(this);
   this.tile = function tile(){
@@ -153,7 +154,7 @@ Flan = function Flan(board,x,y,direction){
     this.board.remove_flan(this);
   }
   this.appearance = function appearance(){
-    return arrows[this.direction];
+    return arrows[this.direction]+this.decorator;
   };
   this.move = function move(move_direction = this.going()){
     if (move_direction === '') return;
@@ -385,10 +386,15 @@ b.axes[3][1].floor="r";
 b.axes[4][1].floor="r";
 f =[];
 f[0] = new Flan(b,1,1,'W');
-f[0] = new Flan(b,2,1,'W');
-f[0] = new Flan(b,3,1,'W');
-f[0] = new Flan(b,4,1,'W');
-f[0] = new Flan(b,4,1,'W');
+f[0].decorator = '0';
+f[1] = new Flan(b,2,1,'W');
+f[1].decorator = '1';
+f[2] = new Flan(b,3,1,'W');
+f[2].decorator = '2';
+f[3] = new Flan(b,4,1,'W');
+f[3].decorator = '3';
+f[4] = new Flan(b,4,1,'W');
+f[4].decorator = '4';
 
 setInterval(function(){
   //for (var i=0 ; i<f.length ; i++) {
