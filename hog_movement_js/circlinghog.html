@@ -143,185 +143,184 @@ Flan = function Flan(board,x,y,direction){
   this.stuck = false;
   this.decorator = '';
   //change other variables upon creation
-  this.board.flans.push(this);
+  board.flans.push(this);
+  board.axes[x][y].flans.push(this);
   this.tile = function tile(){
     return this.board.axes[this.x][this.y];
   }
+}
+Flan.prototype.deconstruct = function deconstruct(){
+  this.tile().remove_flan(this);
+  this.board.remove_flan(this);
+}
+Flan.prototype.appearance = function appearance(){
+  var s = $("<span>");
+  s.addClass("flan");
+  if(this.looped){
+    s.addClass("looped");
+  }
+  if(this.stuck){
+    s.addClass("stuck");
+  }
+  s.text(arrows[this.direction]+this.decorator);
+  return s;
+};
+Flan.prototype.move = function move(move_direction = this.going()){
+  if (move_direction === '') return;
+  this.board.axes[this.x][this.y].remove_flan(this);
+  switch(move_direction){
+    case "N":
+      this.y += 1;
+      break;
+    case "E":
+      this.x += 1;
+      break;
+    case "W":
+      this.x -= 1;
+      break;
+    case "S":
+      this.y -= 1;
+  }
+  this.x = mod(this.x,this.board.width);
+  this.y = mod(this.y,this.board.height);
+  this.direction = move_direction;
   this.tile().flans.push(this);
-  //methods
-  this.deconstruct = function deconstruct(){
-    this.tile().remove_flan(this);
-    this.board.remove_flan(this);
-  }
-  this.appearance = function appearance(){
-    s = $("<span>");
-    s.addClass("flan");
-    if(this.looped){
-      s.addClass("looped");
-    }
-    if(this.stuck){
-      s.addClass("stuck");
-    }
-    s.text(arrows[this.direction]+this.decorator);
-    return s;
+};
+Flan.prototype.neighbor_tiles = function neighbor_tiles(){
+  left_coords = this.local2absolute(-1,0);
+  right_coords = this.local2absolute(1,0);
+  front_coords = this.local2absolute(0,1);
+  back_coords = this.local2absolute(0,-1);
+  var obj = {
+    left: this.board.axes[left_coords.x][left_coords.y],
+    right: this.board.axes[right_coords.x][right_coords.y],
+    front: this.board.axes[front_coords.x][front_coords.y],
+    back: this.board.axes[back_coords.x][back_coords.y]
   };
-  this.move = function move(move_direction = this.going()){
-    if (move_direction === '') return;
-    this.board.axes[this.x][this.y].remove_flan(this);
-    switch(move_direction){
-      case "N":
-        this.y += 1;
-        break;
-      case "E":
-        this.x += 1;
-        break;
-      case "W":
-        this.x -= 1;
-        break;
-      case "S":
-        this.y -= 1;
+  return obj;
+  }
+Flan.prototype.right = function right(){
+return {"N":"E",
+        "E":"S",
+        "S":"W",
+        "W":"N"}[this.direction]
+}
+Flan.prototype.left = function left(){
+return {"N":"W",
+        "W":"S",
+        "S":"E",
+        "E":"N"}[this.direction]
+}
+Flan.prototype.back = function back(){
+  return {"N":"S",
+          "S":"N",
+          "W":"E",
+          "E":"W"}[this.direction]
+}
+Flan.prototype.going = function going(){
+  if (this.neighbor_tiles().front.floor === 'r'){
+    return this.direction;
+  } else if (this.neighbor_tiles().right.floor === 'r'){
+    return this.right();
+  } else if (this.neighbor_tiles().left.floor === 'r'){
+    return this.left();
+  }
+  return '';
+}
+Flan.prototype.following = function following(){
+  var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
+  temp_flan.move();
+  var test_tile = temp_flan.tile();
+  var test_direction = temp_flan.going();
+  temp_flan.deconstruct();
+  //if (test_tile === this.tile) return false;
+  return test_tile.flan_going(test_direction);
+}
+Flan.prototype.going_to_t = function going_to_t(){
+  var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
+  temp_flan.move();
+  if (temp_flan.tile === this.tile){
+    temp_flan.deconstruct;
+    return false;
+  }
+  var temp_flan_neighbors = temp_flan.neighbor_tiles();
+  var condition = (temp_flan_neighbors.front.floor === '' &&
+               temp_flan_neighbors.right.floor === 'r'&&
+               temp_flan_neighbors.left.floor === 'r');
+  temp_flan.deconstruct();
+  return condition;
+}
+Flan.prototype.flan_competing_for_t = function flan_competing_for_t(){
+  if (! this.going_to_t()) return false;
+  var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
+  temp_flan.move();
+  var ret_val = temp_flan.neighbor_tiles().left.flan_going(temp_flan.right());
+  temp_flan.deconstruct();
+  return ret_val;
+}
+Flan.prototype.step = function step(){
+  if (this.has_stepped || this.stuck){return};
+  next_flan = this.following();
+  if (next_flan == this){
+    this.stuck = true;
+    return;
+  }
+  if (this.looped){
+    this.has_stepped = true;
+    this.move();
+    if (next_flan){
+      next_flan.step();
     }
-    this.x = mod(this.x,this.board.width);
-    this.y = mod(this.y,this.board.height);
-    this.direction = move_direction;
-    this.tile().flans.push(this);
-  };
-  this.neighbor_tiles = function neighbor_tiles(){
-    left_coords = this.local2absolute(-1,0);
-    right_coords = this.local2absolute(1,0);
-    front_coords = this.local2absolute(0,1);
-    back_coords = this.local2absolute(0,-1);
-    var obj = {
-      left: this.board.axes[left_coords.x][left_coords.y],
-      right: this.board.axes[right_coords.x][right_coords.y],
-      front: this.board.axes[front_coords.x][front_coords.y],
-      back: this.board.axes[back_coords.x][back_coords.y]
-    };
-    return obj;
+    return;
   }
-  this.right = function right(){
-    return {"N":"E",
-            "E":"S",
-            "S":"W",
-            "W":"N"}[this.direction]
-  }
-  this.left = function left(){
-    return {"N":"W",
-            "W":"S",
-            "S":"E",
-            "E":"N"}[this.direction]
-  }
-  this.back = function back(){
-    return {"N":"S",
-            "S":"N",
-            "W":"E",
-            "E":"W"}[this.direction]
-  }
-  this.going = function going(){
-    if (this.neighbor_tiles().front.floor === 'r'){
-      return this.direction;
-    } else if (this.neighbor_tiles().right.floor === 'r'){
-      return this.right();
-    } else if (this.neighbor_tiles().left.floor === 'r'){
-      return this.left();
-    }
-    return '';
-  }
-  this.following = function following(){
-    var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
-    temp_flan.move();
-    var test_tile = temp_flan.tile();
-    var test_direction = temp_flan.going();
-    temp_flan.deconstruct();
-    //if (test_tile === this.tile) return false;
-    return test_tile.flan_going(test_direction);
-  }
-  this.going_to_t = function going_to_t(){
-    var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
-    temp_flan.move();
-    if (temp_flan.tile === this.tile){
-      temp_flan.deconstruct;
-      return false;
-    }
-    var temp_flan_neighbors = temp_flan.neighbor_tiles();
-    var condition = (temp_flan_neighbors.front.floor === '' &&
-                 temp_flan_neighbors.right.floor === 'r'&&
-                 temp_flan_neighbors.left.floor === 'r');
-    temp_flan.deconstruct();
-    return condition;
-  }
-  this.flan_competing_for_t = function flan_competing_for_t(){
-    if (! this.going_to_t()) return false;
-    var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
-    temp_flan.move();
-    var ret_val = temp_flan.neighbor_tiles().left.flan_going(temp_flan.right());
-    temp_flan.deconstruct();
-    return ret_val;
-  }
-  this.step = function step(){
-    if (this.has_stepped || this.stuck){return};
-    next_flan = this.following();
-    if (next_flan == this){
+  if (next_flan){
+    if (next_flan.looped || next_flan.stuck){
       this.stuck = true;
       return;
     }
-    if (this.looped){
-      this.has_stepped = true;
-      this.move();
-      if (next_flan){
-        next_flan.step();
+    if (next_flan.is_waiting){ // we are in a loop. Advance it.
+      this.looped = true;
+      f = next_flan;
+      while (f !== this){
+        f.looped = true;
+        f = f.following();
       }
+      //next_flan.looped = true;
+      this.move();
+      this.has_stepped = true;
+      next_flan.step();
       return;
     }
-    if (next_flan){
-      if (next_flan.looped || next_flan.stuck){
-        this.stuck = true;
-        return;
-      }
-      if (next_flan.is_waiting){ // we are in a loop. Advance it.
-        this.looped = true;
-        f = next_flan;
-        while (f !== this){
-          f.looped = true;
-          f = f.following();
-        }
-        //next_flan.looped = true;
-        this.move();
-        this.has_stepped = true;
-        next_flan.step();
-        return;
-      }
-      this.is_waiting = true;
-      next_flan.step(); //let the next flan get out of the way.
-      this.is_waiting = false;
-      if (this.has_stepped){
-        return;
-      }
-      if (this.following()){ //the flan we are following could not move, or another flan took its place. Stop.
-        this.has_stepped = true;
-        return;
-      }
-      if (this.flan_competing_for_t()){ //let another flan into the procession. Stop.
-        this.flan_competing_for_t().step();
-        this.has_stepped = true;
-        return;
-      }
-      // we can fill the space we were following. Move and stop.
-      this.move();
+    this.is_waiting = true;
+    next_flan.step(); //let the next flan get out of the way.
+    this.is_waiting = false;
+    if (this.has_stepped){
+      return;
+    }
+    if (this.following()){ //the flan we are following could not move, or another flan took its place. Stop.
       this.has_stepped = true;
       return;
     }
-    //we are not following anyone, i.e. our target space is open.
     if (this.flan_competing_for_t()){ //let another flan into the procession. Stop.
-        this.flan_competing_for_t().step();
-        this.has_stepped = true;
-        return;
+      this.flan_competing_for_t().step();
+      this.has_stepped = true;
+      return;
     }
-    //we have priority for entering our target. Move and stop.
+    // we can fill the space we were following. Move and stop.
     this.move();
     this.has_stepped = true;
     return;
   }
+  //we are not following anyone, i.e. our target space is open.
+  if (this.flan_competing_for_t()){ //let another flan into the procession. Stop.
+      this.flan_competing_for_t().step();
+      this.has_stepped = true;
+      return;
+  }
+  //we have priority for entering our target. Move and stop.
+  this.move();
+  this.has_stepped = true;
+  return;
 }
 
 function mod(m,n){
