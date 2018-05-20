@@ -41,6 +41,32 @@ Tile = function Tile(board, x, y, floor){
       this.flans.splice(index,1);
     };
   }
+  this.flan_pointing = function flan_pointing(direction){
+    for (let flan of this.flans){
+      if (flan.direction === direction){
+        return flan;
+      };
+    };
+    return false;
+  }
+  this.flan_going = function flan_going(direction){
+    for (let flan of this.flans){
+      if (flan.going() === direction){
+        return flan;
+      };
+    };
+    return false;
+  }
+  /*
+  this.flan_pointing = function flan_pointing(direction){
+    for (let flan of this.flans){
+      if (flan.direction === direction){
+        return flan
+      };
+    };
+    throw `tile at (${this.x}, ${this.y}) has no flan pointing ${direction}.`;
+  }
+  */
 }
 
 Board = function Board(width,height){
@@ -51,6 +77,13 @@ Board = function Board(width,height){
     for(var j=0;j<height;j++){
       this.axes[i][j]= new Tile(this,i,j,'');
     }
+  }
+  this.flans = [];
+  this.remove_flan = function remove_flan(flan){
+    var index = this.flans.indexOf(flan);
+    if (index > -1) {
+      this.flans.splice(index,1);
+    };
   }
 }
 
@@ -93,18 +126,28 @@ arrows = {
 }
 
 Flan = function Flan(board,x,y,direction){
+  //variables
   this.x = x;
   this.y = y;
   this.direction = direction;
   this.board = board;
+  this.has_stepped = false;
+  this.waiting = false;
+  //change other variables upon creation
+  this.board.flans.push(this);
   this.tile = function tile(){
     return this.board.axes[this.x][this.y];
   }
   this.tile().flans.push(this);
+  //methods
+  this.deconstruct = function deconstruct(){
+    this.tile().remove_flan(this);
+    this.board.remove_flan(this);
+  }
   this.appearance = function appearance(){
     return arrows[this.direction];
   };
-  this.move = function move(move_direction){
+  this.move = function move(move_direction = this.going()){
     this.board.axes[this.x][this.y].remove_flan(this);
     switch(move_direction){
       case "N":
@@ -155,17 +198,30 @@ Flan = function Flan(board,x,y,direction){
             "W":"E",
             "E":"W"}[this.direction]
   }
+  this.going = function going(){
+    if (this.neighbor_tiles().front.floor === 'r'){
+      return this.direction;
+    } else if (this.neighbor_tiles().right.floor === 'r'){
+      return this.right();
+    } else if (this.neighbor_tiles().left.floor === 'r'){
+      return this.left();
+    }
+    return '';
+  }
+  this.following = function following(){
+    var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
+    temp_flan.move();
+    var test_tile = temp_flan.tile();
+    var test_direction = temp_flan.going();
+    temp_flan.deconstruct();
+    return test_tile.flan_going(test_direction);
+  }
 }
 
 function mod(m,n){
   return (m%n + n)%n;
 }
 
-//Since there are many times when a flan needs to 
-//work in its own coordinate system, it makes sense
-//to have a function to translate.
-
-//I want to be able to rotate a vector.
 //This function rotates a vector (x,y) "n" steps clockwise.
 function rotate(x,y,n){
   n = mod(n,4);
@@ -223,58 +279,40 @@ Flan.prototype.absolute2local = function absolute2local(x,y){
 }
 
 /*
-Flan.prototype.step = function step(){
-  adjacents = [[mod(this.x+1,this.board.width),this.y],
-               [this.x,mod(this.y-1,this.board.height)],
-               [mod(this.x-1,this.board.width),this.y],
-               [this.x,mod(this.y+1,this.board.height)]];
-
-  forwardindex = {"E":0,
-                  "S":1,
-                  "W":2,
-                  "N":3}[this.direction]
-  
-  adjacents.push.apply(adjacents, adjacents.splice(0,forwardindex))
-
-  for (var i=0;i<4;i++){
-    if (i === 2) {
-      continue;
-    }
-    var newx = adjacents[i][0];
-    var newy = adjacents[i][1];
-    if (this.board.axes[newx][newy].floor === 'r'){
-      this.move(
-        {0:"E",
-         1:"S",
-         2:"W",
-         3:"N"}[mod(i+forwardindex,4)]
-      )
-      /*
-      this.board.axes[this.x][this.y].remove_flan(this);
-      this.x = newx;
-      this.y = newy;
-      this.board.axes[newx][newy].flans.push(this);
-      this.direction = {0:"E",
-                        1:"S",
-                        2:"W",
-                        3:"N"}[mod(i+forwardindex,4)];
-      *//*
-      break;
+Flan.prototype.is_stopped = function is_stopped(){
+  if (this.left().floor === '' && 
+      this.right().floor === '' &&
+      this.front().floor === ''){
+    return true;
+  } else if (this.left().floor === '' &&
+             this.right().floor === '' &&
+             this.front().floor === 'r'){
+    if (this.front().has_flan_pointing(this.direction)){
+      if (this.front().flan_pointing(this.direction).has_stepped){
+        return true;
+      }
     }
   }
+  return false;
+}
+
+// run this before any flan move, so that we know which flan
+// are not able to move this turn.
+Board.prototype.stopped_flan_step = function stopped_flan_step(){
+  var number_of_stopped_flan_increment = 0;
+  do{
+    number_of_stopped_flan_increment = 0;
+    for (let flan of this.flans){
+      if ( ! flan.has_stepped ){
+        if (flan.is_stopped){   // TO DO: this function
+          flan.has_stepped = true;
+          number_of_stopped_flan_increment += 1;
+        }
+      };
+    };
+  } while (number_of_stopped_flan_increment != 0);
 }
 */
-
-Flan.prototype.dumb_step = function dumb_step(){
-  neighbors = this.neighbor_tiles();
-  if (neighbors.front.floor === 'r'){
-    this.move(this.direction);
-  } else if (neighbors.right.floor === 'r'){
-    this.move(this.right());
-  } else if (neighbors.left.floor === 'r'){
-    this.move(this.left())
-  }
-}
 
 b = new Board(5,6);
 
@@ -295,14 +333,17 @@ f[0] = new Flan(b,2,2,"N");
 f[1] = new Flan(b,2,1,"W");
 f[2] = new Flan(b,1,4,"E");
 f[3] = new Flan(b,1,4,"E");
+f[4] = new Flan(b,1,1,"W");
 
 setInterval(function(){
-  for (var i=0 ; i<f.length ; i++) {
-    f[i].dumb_step();
-  }
+  //for (var i=0 ; i<f.length ; i++) {
+  //  f[i].move();
+  //}
+  for (let flan of b.flans){
+    flan.move();
+  };
   b.render();
   },500)
-
 
 
 </script>
