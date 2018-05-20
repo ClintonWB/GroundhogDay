@@ -232,7 +232,7 @@ Flan = function Flan(board,x,y,direction){
     var test_tile = temp_flan.tile();
     var test_direction = temp_flan.going();
     temp_flan.deconstruct();
-    if (test_tile === this.tile) return false;
+    //if (test_tile === this.tile) return false;
     return test_tile.flan_going(test_direction);
   }
   this.going_to_t = function going_to_t(){
@@ -260,6 +260,10 @@ Flan = function Flan(board,x,y,direction){
   this.step = function step(){
     if (this.has_stepped || this.stuck){return};
     next_flan = this.following();
+    if (next_flan == this){
+      this.stuck = true;
+      return;
+    }
     if (this.looped){
       this.has_stepped = true;
       this.move();
