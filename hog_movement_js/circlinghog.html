@@ -141,6 +141,7 @@ Flan = function Flan(board,x,y,direction){
   this.board = board;
   this.has_stepped = false;
   this.is_waiting = false;
+  this.moved_into = false;
   this.decorator = '';
   //change other variables upon creation
   this.board.flans.push(this);
@@ -248,6 +249,7 @@ Flan = function Flan(board,x,y,direction){
     if (this.has_stepped) return;
     if (this.following()){
       if (this.following().is_waiting){ // we are in a loop. Advance it.
+        this.following.moved_into = true;
         this.move();
         return;
       }
@@ -256,6 +258,12 @@ Flan = function Flan(board,x,y,direction){
       this.is_waiting = false;
       if (this.following()){ //the flan we are following could not move, or another flan took its place. Stop.
         this.has_stepped = true;
+        return;
+      }
+      if (this.moved_into){
+        this.move();
+        this.has_stepped = true;
+        this.moved_into = false;
         return;
       }
       //if (this.has_been_stepped_into()){ //we were the at the end of a loop. Get a move on.
