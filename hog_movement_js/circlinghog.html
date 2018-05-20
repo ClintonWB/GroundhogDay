@@ -239,7 +239,7 @@ Flan = function Flan(board,x,y,direction){
     if (this.has_stepped) return;
     if (this.following()){
       if (this.following().is_waiting){ // we are in a loop. Advance it.
-        this.following.moved_into = true;
+        this.following().moved_into = true;
         this.move();
         return;
       }
