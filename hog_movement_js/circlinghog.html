@@ -85,6 +85,14 @@ Board = function Board(width,height){
       this.flans.splice(index,1);
     };
   }
+  this.step = function step(){
+    for (let flan of this.flans){
+      flan.has_stepped = false;
+    };
+    for (let flan of this.flans){
+      flan.step();
+    };
+  }
 }
 
 Board.prototype.render = function render(){
@@ -132,7 +140,7 @@ Flan = function Flan(board,x,y,direction){
   this.direction = direction;
   this.board = board;
   this.has_stepped = false;
-  this.waiting = false;
+  this.is_waiting = false;
   //change other variables upon creation
   this.board.flans.push(this);
   this.tile = function tile(){
@@ -148,6 +156,7 @@ Flan = function Flan(board,x,y,direction){
     return arrows[this.direction];
   };
   this.move = function move(move_direction = this.going()){
+    if (move_direction === '') return;
     this.board.axes[this.x][this.y].remove_flan(this);
     switch(move_direction){
       case "N":
@@ -216,6 +225,59 @@ Flan = function Flan(board,x,y,direction){
     temp_flan.deconstruct();
     return test_tile.flan_going(test_direction);
   }
+  this.going_to_t = function going_to_t(){
+    var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
+    temp_flan.move();
+    var temp_flan_neighbors = temp_flan.neighbor_tiles();
+    var condition = (temp_flan_neighbors.front.floor === '' &&
+                 temp_flan_neighbors.right.floor === 'r'&&
+                 temp_flan_neighbors.left.floor === 'r');
+    temp_flan.deconstruct();
+    return condition;
+  }
+  this.flan_competing_for_t = function flan_competing_for_t(){
+    if (! this.going_to_t()) return false;
+    var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
+    temp_flan.move();
+    var ret_val = temp_flan.neighbor_tiles().left.flan_going(temp_flan.right());
+    temp_flan.deconstruct();
+    return ret_val;
+  }
+  this.step = function step(){
+    if (this.has_stepped) return;
+    if (this.following()){
+      if (this.following().is_waiting){ // we found a loop. Advance it.
+        this.move();
+        return;
+      }
+      this.is_waiting = true;
+      this.following().step(); //let the next flan get out of the way.
+      this.is_waiting = false;
+      if (this.following()){ //the flan we are following could not move, or another flan took its place. Stop.
+        this.has_stepped = true;
+        return;
+      }
+      if (this.flan_competing_for_t()){ //let another flan into the procession. Stop.
+        this.flan_competing_for_t().step();
+        this.has_stepped = true;
+        return;
+      }
+      // we can fill the space we were following. Move and stop.
+      this.move();
+      this.has_stepped = true;
+      return;
+    }
+    //we are not following anyone, i.e. our target space is open.
+    if (this.flan_competing_for_t()){ //let another flan into the procession. Stop.
+        this.flan_competing_for_t.step();
+        this.has_stepped = true;
+        return;
+    }
+    //we have priority for entering our target. Move and stop.
+    this.move();
+    this.has_stepped = true;
+    return;
+  }
 }
 
 function mod(m,n){
@@ -278,44 +340,9 @@ Flan.prototype.absolute2local = function absolute2local(x,y){
   return obj;
 }
 
-/*
-Flan.prototype.is_stopped = function is_stopped(){
-  if (this.left().floor === '' && 
-      this.right().floor === '' &&
-      this.front().floor === ''){
-    return true;
-  } else if (this.left().floor === '' &&
-             this.right().floor === '' &&
-             this.front().floor === 'r'){
-    if (this.front().has_flan_pointing(this.direction)){
-      if (this.front().flan_pointing(this.direction).has_stepped){
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-// run this before any flan move, so that we know which flan
-// are not able to move this turn.
-Board.prototype.stopped_flan_step = function stopped_flan_step(){
-  var number_of_stopped_flan_increment = 0;
-  do{
-    number_of_stopped_flan_increment = 0;
-    for (let flan of this.flans){
-      if ( ! flan.has_stepped ){
-        if (flan.is_stopped){   // TO DO: this function
-          flan.has_stepped = true;
-          number_of_stopped_flan_increment += 1;
-        }
-      };
-    };
-  } while (number_of_stopped_flan_increment != 0);
-}
-*/
-
 b = new Board(5,6);
 
+/*
 b.axes[2][1].floor="r";
 b.axes[3][2].floor="r";
 b.axes[4][2].floor="r";
@@ -334,14 +361,28 @@ f[1] = new Flan(b,2,1,"W");
 f[2] = new Flan(b,1,4,"E");
 f[3] = new Flan(b,1,4,"E");
 f[4] = new Flan(b,1,1,"W");
+*/
+b.axes[1][1].floor="r";
+b.axes[1][2].floor="r";
+b.axes[2][1].floor="r";
+b.axes[2][2].floor="r";
+b.axes[3][1].floor="r";
+b.axes[4][1].floor="r";
+f =[];
+f[0] = new Flan(b,1,1,'W');
+f[0] = new Flan(b,2,1,'W');
+f[0] = new Flan(b,3,1,'W');
+f[0] = new Flan(b,4,1,'W');
+f[0] = new Flan(b,4,1,'W');
 
 setInterval(function(){
   //for (var i=0 ; i<f.length ; i++) {
   //  f[i].move();
   //}
-  for (let flan of b.flans){
-    flan.move();
-  };
+  //for (let flan of b.flans){
+  //  flan.move();
+  //};
+  b.step();
   b.render();
   },500)
 
