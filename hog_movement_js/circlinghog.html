@@ -57,16 +57,6 @@ Tile = function Tile(board, x, y, floor){
     };
     return false;
   }
-  /*
-  this.flan_pointing = function flan_pointing(direction){
-    for (let flan of this.flans){
-      if (flan.direction === direction){
-        return flan
-      };
-    };
-    throw `tile at (${this.x}, ${this.y}) has no flan pointing ${direction}.`;
-  }
-  */
 }
 
 Board = function Board(width,height){
@@ -260,7 +250,7 @@ Flan = function Flan(board,x,y,direction){
         this.has_stepped = true;
         return;
       }
-      if (this.moved_into){
+      if (this.moved_into){ //We are the end of a loop. Fill it out.
         this.move();
         this.has_stepped = true;
         this.moved_into = false;
