@@ -145,10 +145,12 @@ Flan = function Flan(board,x,y,direction){
   //change other variables upon creation
   board.flans.push(this);
   board.axes[x][y].flans.push(this);
-  this.tile = function tile(){
-    return this.board.axes[this.x][this.y];
-  }
 }
+
+Flan.prototype.tile = function tile(){
+    return this.board.axes[this.x][this.y];
+}
+
 Flan.prototype.deconstruct = function deconstruct(){
   this.tile().remove_flan(this);
   this.board.remove_flan(this);
@@ -239,7 +241,7 @@ Flan.prototype.following = function following(){
 Flan.prototype.going_to_t = function going_to_t(){
   var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
   temp_flan.move();
-  if (temp_flan.tile === this.tile){
+  if (temp_flan.tile() === this.tile()){
     temp_flan.deconstruct;
     return false;
   }
