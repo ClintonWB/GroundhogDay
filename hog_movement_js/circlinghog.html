@@ -15,6 +15,13 @@ td{
 .road{
   background-color:darkred;
 }
+
+.looped{
+  color:lightgreen;
+}
+.stuck{
+  color:red;
+}
 </style>
 
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
@@ -29,11 +36,11 @@ Tile = function Tile(board, x, y, floor){
   this.floor = floor;
   this.flans = [];
   this.appearance = function appearance(){
-    var string='';
+    var s=$("<span>");
     for (let flan of this.flans){
-      string+=flan.appearance();
+      s.append(flan.appearance());
     };
-    return string;
+    return s;
   }
   this.remove_flan = function remove_flan(flan){
     var index = this.flans.indexOf(flan);
@@ -95,7 +102,7 @@ Board.prototype.render = function render(){
       if (this.axes[j][i].floor === "r") {
         td.addClass("road")
       }
-      td.text(this.axes[j][i].appearance());
+      td.append(this.axes[j][i].appearance());
 
       clickhandlerfactory = function(i,j,board){
         return function(){
@@ -145,7 +152,16 @@ Flan = function Flan(board,x,y,direction){
     this.board.remove_flan(this);
   }
   this.appearance = function appearance(){
-    return arrows[this.direction]+this.decorator;
+    s = $("<span>");
+    s.addClass("flan");
+    if(this.looped){
+      s.addClass("looped");
+    }
+    if(this.stuck){
+      s.addClass("stuck");
+    }
+    s.text(arrows[this.direction]+this.decorator);
+    return s;
   };
   this.move = function move(move_direction = this.going()){
     if (move_direction === '') return;
@@ -236,24 +252,42 @@ Flan = function Flan(board,x,y,direction){
     return ret_val;
   }
   this.step = function step(){
-    if (this.has_stepped) return;
-    if (this.following()){
-      if (this.following().is_waiting){ // we are in a loop. Advance it.
-        this.following().moved_into = true;
+    if (this.has_stepped || this.stuck){return};
+    next_flan = this.following();
+    if (this.looped){
+      this.has_stepped = true;
+      this.move();
+      if (next_flan){
+        next_flan.step();
+      }
+      return;
+    }
+    if (next_flan){
+      if (next_flan.looped || next_flan.stuck){
+        this.stuck = true;
+        return;
+      }
+      if (next_flan.is_waiting){ // we are in a loop. Advance it.
+        this.looped = true;
+        f = next_flan;
+        while (f !== this){
+          f.looped = true;
+          f = f.following();
+        }
+        next_flan.looped = true;
         this.move();
+        this.has_stepped = true;
+        next_flan.step();
         return;
       }
       this.is_waiting = true;
-      this.following().step(); //let the next flan get out of the way.
+      next_flan.step(); //let the next flan get out of the way.
       this.is_waiting = false;
-      if (this.following()){ //the flan we are following could not move, or another flan took its place. Stop.
-        this.has_stepped = true;
+      if (this.has_stepped){
         return;
       }
-      if (this.moved_into){ //We are the end of a loop. Fill it out.
-        this.move();
+      if (this.following()){ //the flan we are following could not move, or another flan took its place. Stop.
         this.has_stepped = true;
-        this.moved_into = false;
         return;
       }
       if (this.flan_competing_for_t()){ //let another flan into the procession. Stop.
