@@ -138,7 +138,8 @@ Flan = function Flan(board,x,y,direction){
   this.board = board;
   this.has_stepped = false;
   this.is_waiting = false;
-  this.moved_into = false;
+  this.looped = false;
+  this.stuck = false;
   this.decorator = '';
   //change other variables upon creation
   this.board.flans.push(this);
@@ -231,11 +232,16 @@ Flan = function Flan(board,x,y,direction){
     var test_tile = temp_flan.tile();
     var test_direction = temp_flan.going();
     temp_flan.deconstruct();
+    if (test_tile === this.tile) return false;
     return test_tile.flan_going(test_direction);
   }
   this.going_to_t = function going_to_t(){
     var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
     temp_flan.move();
+    if (temp_flan.tile === this.tile){
+      temp_flan.deconstruct;
+      return false;
+    }
     var temp_flan_neighbors = temp_flan.neighbor_tiles();
     var condition = (temp_flan_neighbors.front.floor === '' &&
                  temp_flan_neighbors.right.floor === 'r'&&
@@ -274,7 +280,7 @@ Flan = function Flan(board,x,y,direction){
           f.looped = true;
           f = f.following();
         }
-        next_flan.looped = true;
+        //next_flan.looped = true;
         this.move();
         this.has_stepped = true;
         next_flan.step();
@@ -401,25 +407,20 @@ b.axes[2][1].floor="r";
 b.axes[2][2].floor="r";
 b.axes[3][1].floor="r";
 b.axes[4][1].floor="r";
-f =[];
-f[0] = new Flan(b,1,1,'W');
-f[0].decorator = '0';
-f[1] = new Flan(b,2,1,'W');
-f[1].decorator = '1';
-f[2] = new Flan(b,3,1,'W');
-f[2].decorator = '2';
-f[3] = new Flan(b,4,1,'W');
-f[3].decorator = '3';
-f[4] = new Flan(b,4,1,'W');
-f[4].decorator = '4';
+f0 = new Flan(b,1,1,'W');
+f0.decorator = '0';
+f1 = new Flan(b,2,1,'W');
+f1.decorator = '1';
+f2 = new Flan(b,3,1,'W');
+f2.decorator = '2';
+f3 = new Flan(b,4,1,'W');
+f3.decorator = '3';
+f4 = new Flan(b,4,1,'W');
+f4.decorator = '4';
+f5 = new Flan(b,0,1,'E');
+f5.decorator = '5';
 
 setInterval(function(){
-  //for (var i=0 ; i<f.length ; i++) {
-  //  f[i].move();
-  //}
-  //for (let flan of b.flans){
-  //  flan.move();
-  //};
   b.step();
   b.render();
   },500)
