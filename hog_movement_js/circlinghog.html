@@ -275,7 +275,7 @@ Flan = function Flan(board,x,y,direction){
     }
     //we are not following anyone, i.e. our target space is open.
     if (this.flan_competing_for_t()){ //let another flan into the procession. Stop.
-        this.flan_competing_for_t.step();
+        this.flan_competing_for_t().step();
         this.has_stepped = true;
         return;
     }
@@ -286,7 +286,7 @@ Flan = function Flan(board,x,y,direction){
   }
   this.has_been_stepped_into = function has_been_stepped_into(){
     var counter = 0;
-    for (let flan of this.tile.flans){
+    for (let flan of this.tile().flans){
       if (flan.going() === this.going()){
         counter++;
       };
