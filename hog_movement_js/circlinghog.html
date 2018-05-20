@@ -35,35 +35,35 @@ Tile = function Tile(board, x, y, floor){
   this.y = y;
   this.floor = floor;
   this.flans = [];
-  this.appearance = function appearance(){
-    var s=$("<span>");
-    for (let flan of this.flans){
-      s.append(flan.appearance());
+}
+Tile.prototype.appearance = function appearance(){
+  var s=$("<span>");
+  for (let flan of this.flans){
+    s.append(flan.appearance());
+  };
+  return s;
+}
+Tile.prototype.remove_flan = function remove_flan(flan){
+  var index = this.flans.indexOf(flan);
+  if (index > -1) {
+    this.flans.splice(index,1);
+  };
+}
+Tile.prototype.flan_pointing = function flan_pointing(direction){
+  for (let flan of this.flans){
+    if (flan.direction === direction){
+      return flan;
     };
-    return s;
-  }
-  this.remove_flan = function remove_flan(flan){
-    var index = this.flans.indexOf(flan);
-    if (index > -1) {
-      this.flans.splice(index,1);
+  };
+  return false;
+}
+Tile.prototype.flan_going = function flan_going(direction){
+  for (let flan of this.flans){
+    if (flan.going() === direction){
+      return flan;
     };
-  }
-  this.flan_pointing = function flan_pointing(direction){
-    for (let flan of this.flans){
-      if (flan.direction === direction){
-        return flan;
-      };
-    };
-    return false;
-  }
-  this.flan_going = function flan_going(direction){
-    for (let flan of this.flans){
-      if (flan.going() === direction){
-        return flan;
-      };
-    };
-    return false;
-  }
+  };
+  return false;
 }
 
 Board = function Board(width,height){
@@ -76,20 +76,21 @@ Board = function Board(width,height){
     }
   }
   this.flans = [];
-  this.remove_flan = function remove_flan(flan){
-    var index = this.flans.indexOf(flan);
-    if (index > -1) {
-      this.flans.splice(index,1);
-    };
-  }
-  this.step = function step(){
-    for (let flan of this.flans){
-      flan.has_stepped = false;
-    };
-    for (let flan of this.flans){
-      flan.step();
-    };
-  }
+}
+
+Board.prototype.remove_flan = function remove_flan(flan){
+  var index = this.flans.indexOf(flan);
+  if (index > -1) {
+    this.flans.splice(index,1);
+  };
+}
+Board.prototype.step = function step(){
+  for (let flan of this.flans){
+    flan.has_stepped = false;
+  };
+  for (let flan of this.flans){
+    flan.step();
+  };
 }
 
 Board.prototype.render = function render(){
