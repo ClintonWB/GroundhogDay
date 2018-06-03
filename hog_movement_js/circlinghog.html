@@ -468,12 +468,20 @@ setInterval(function(){
   b.render();
   },500)
 
+$(document).ready(function(){
+    $("#reset").click(function(){
+        b.reset_day();
+    });
+});
 
 </script>
 
 <body>
  <div id="board_container">
 
+ </div>
+ <div id="buttons">
+    <button id="reset"> reset </button>
  </div>
 </body>
 
