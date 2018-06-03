@@ -191,7 +191,8 @@ Board.prototype.render = function render(){
   }
   board_container.empty()
   board_container.append(board_table)
-  board_container.append(`This day has gone on for ${this.number_of_steps} steps`)
+  board_container.append(`This day has gone on for ${this.number_of_steps} steps.\n`)
+  board_container.append(`The current tool is ${this.selected_tool}.`)
 }
 
 
