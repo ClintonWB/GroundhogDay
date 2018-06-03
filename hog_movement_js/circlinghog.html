@@ -8,8 +8,8 @@
 td{
   color:white;
   background-color:black;
-  width:2em;
-  height:2em;
+  width:4em;
+  height:4em;
   text-align:center;
 }
 .road{
@@ -76,6 +76,7 @@ Board = function Board(width,height){
     }
   }
   this.flans = [];
+  this.is_changed = false;
 }
 
 Board.prototype.remove_flan = function remove_flan(flan){
@@ -87,6 +88,12 @@ Board.prototype.remove_flan = function remove_flan(flan){
 Board.prototype.step = function step(){
   for (let flan of this.flans){
     flan.has_stepped = false;
+  };
+  if (this.is_changed){
+    for (let flan of this.flans){
+      flan.looped = false;
+      flan.stuck = false;
+    };
   };
   for (let flan of this.flans){
     flan.step();
@@ -107,6 +114,7 @@ Board.prototype.render = function render(){
 
       clickhandlerfactory = function(i,j,board){
         return function(){
+          board.is_changed = true;
           if(board.axes[j][i].floor === 'r'){
             board.axes[j][i].floor = '';
           } else if (board.axes[j][i].floor === ''){
@@ -263,7 +271,7 @@ Flan.prototype.flan_competing_for_t = function flan_competing_for_t(){
 Flan.prototype.step = function step(){
   if (this.has_stepped || this.stuck){return};
   next_flan = this.following();
-  if (next_flan == this){
+  if (next_flan === this){
     this.stuck = true;
     return;
   }
