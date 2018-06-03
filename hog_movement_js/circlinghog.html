@@ -35,9 +35,13 @@ Tile = function Tile(board, x, y, floor){
   this.y = y;
   this.floor = floor;
   this.flans = [];
+  this.houses = [];
 }
 Tile.prototype.appearance = function appearance(){
   var s=$("<span>");
+  for (let house of this.houses){
+    s.append(house.appearance());
+  };
   for (let flan of this.flans){
     s.append(flan.appearance());
   };
@@ -78,6 +82,7 @@ Board = function Board(width,height){
   this.flans = [];
   this.is_changed = false;
   this.number_of_steps = 0;
+  this.houses = [];
 }
 
 Board.prototype.remove_flan = function remove_flan(flan){
@@ -200,6 +205,13 @@ Flan.prototype.move = function move(move_direction = this.going()){
   this.direction = move_direction;
   this.tile().flans.push(this);
 };
+Flan.prototype.move_to = function move_to(x = this.x,y=this.y,direction = this.direction){
+  this.tile().remove_flan(this);
+  this.x = mod(x,this.board.width);
+  this.y = mod(y,this.board.height);
+  this.direction = direction;
+  this.tile().flans.push(this);
+}
 Flan.prototype.neighbor_tiles = function neighbor_tiles(){
   left_coords = this.local2absolute(-1,0);
   right_coords = this.local2absolute(1,0);
@@ -396,6 +408,26 @@ Flan.prototype.absolute2local = function absolute2local(x,y){
   };
   return obj;
 }
+
+class House {
+  constructor(board,i,j,direction){
+    this.board = board;
+    this.tile = board.axes[i][j];
+    this.direction = direction;
+    this.flan = new Flan(board,i,j,direction);
+    this.board.houses.push(this);
+    this.tile.houses.push(this);
+  }
+  appearance(){
+    return "H"+arrows[this.direction];
+  }
+  recall_flan(){
+    this.flan.move_to(this.tile.x,this.tile.y,this.direction);
+    this.flan.stuck=false;
+    this.flan.looped=false;
+  }
+}
+
 
 b = new Board(5,6);
 
