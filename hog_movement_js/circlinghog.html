@@ -291,6 +291,9 @@ Flan.prototype.flan_competing_for_t = function flan_competing_for_t(){
   temp_flan.move();
   var ret_val = temp_flan.neighbor_tiles().left.flan_going(temp_flan.right());
   temp_flan.deconstruct();
+  if (ret_val.has_stepped){
+    return false;
+  }
   return ret_val;
 }
 Flan.prototype.step = function step(){
@@ -298,6 +301,7 @@ Flan.prototype.step = function step(){
   next_flan = this.following();
   if (next_flan === this){
     this.stuck = true;
+    this.has_stepped = true;
     return;
   }
   if (this.looped){
@@ -311,9 +315,10 @@ Flan.prototype.step = function step(){
   if (next_flan){
     if (next_flan.looped || next_flan.stuck){
       this.stuck = true;
+      this.has_stepped = true;
       return;
     }
-    if (next_flan.is_waiting){ // we are in a loop. Advance it.
+    if (next_flan.is_waiting){ // We found a new loop. Inform the others, then advance the whole loop.
       this.looped = true;
       f = next_flan;
       while (f !== this){
@@ -329,10 +334,13 @@ Flan.prototype.step = function step(){
     this.is_waiting = true;
     next_flan.step(); //let the next flan get out of the way.
     this.is_waiting = false;
-    if (this.has_stepped){
-      return;
-    }
+    //if (this.has_stepped){
+    //  return;
+    //}
     if (this.following()){ //the flan we are following could not move, or another flan took its place. Stop.
+      if (this.following.looped || this.following.stuck){
+        this.stuck=true;
+      }
       this.has_stepped = true;
       return;
     }
