@@ -53,6 +53,12 @@ Tile.prototype.remove_flan = function remove_flan(flan){
     this.flans.splice(index,1);
   };
 }
+Tile.prototype.remove_house = function remove_house(house){
+  var index = this.houses.indexOf(house);
+  if (index > -1) {
+    this.houses.splice(index,1);
+  };
+}
 Tile.prototype.flan_pointing = function flan_pointing(direction){
   for (let flan of this.flans){
     if (flan.direction === direction){
@@ -69,6 +75,37 @@ Tile.prototype.flan_going = function flan_going(direction){
   };
   return false;
 }
+Tile.prototype.road_toggle = function road_toggle(){
+  if(this.floor === ''){
+    this.floor = 'r';
+  } else {
+    this.floor ='';
+  }
+}
+Tile.prototype.house_toggle = function house_toggle(){
+  if(this.houses.length > 0){
+    this.houses[0].deconstruct();
+  } else {
+    new House(this.board,this.x,this.y,"N");
+  }
+}
+Tile.prototype.on_click = function on_click(){
+  switch (this.board.selected_tool){
+    case "rotate_house":
+      if(this.houses.length>0)this.houses[0].rotate();
+      break;
+    case "road_toggle":
+      this.road_toggle();
+      break;
+    case "house_toggle":
+      this.house_toggle();
+      break;
+    default:
+      throw "no such tool as "+this.board.selected_tool;
+      break;      
+  }
+  this.board.is_changed = true;
+}
 
 Board = function Board(width,height){
   this.width = width;
@@ -83,12 +120,19 @@ Board = function Board(width,height){
   this.is_changed = false;
   this.number_of_steps = 0;
   this.houses = [];
+  this.selected_tool = "road_toggle";
 }
 
 Board.prototype.remove_flan = function remove_flan(flan){
   var index = this.flans.indexOf(flan);
   if (index > -1) {
     this.flans.splice(index,1);
+  };
+}
+Board.prototype.remove_house = function remove_house(house){
+  var index = this.houses.indexOf(house);
+  if (index > -1) {
+    this.houses.splice(index,1);
   };
 }
 Board.prototype.step = function step(){
@@ -131,12 +175,13 @@ Board.prototype.render = function render(){
 
       clickhandlerfactory = function(i,j,board){
         return function(){
-          board.is_changed = true;
-          if(board.axes[j][i].floor === 'r'){
-            board.axes[j][i].floor = '';
-          } else if (board.axes[j][i].floor === ''){
-            board.axes[j][i].floor = 'r'
-          }
+          //board.is_changed = true;
+          //if(board.axes[j][i].floor === 'r'){
+          //  board.axes[j][i].floor = '';
+          //} else if (board.axes[j][i].floor === ''){
+          //  board.axes[j][i].floor = 'r'
+          //}
+          board.axes[j][i].on_click();
         }
       }
       td.bind("click",clickhandlerfactory(i,j,this))
@@ -442,8 +487,21 @@ class House {
   }
   recall_flan(){
     this.flan.move_to(this.tile.x,this.tile.y,this.direction);
-    this.flan.stuck=false;
-    this.flan.looped=false;
+    this.board.is_changed = true;
+  }
+  deconstruct(){
+    this.flan.deconstruct();
+    this.board.remove_house(this);
+    this.tile.remove_house(this);
+  }
+  rotate(times = 1){
+    for (var i=0; i<times; i++){
+      this.direction = {"N":"E",
+                        "E":"S",
+                        "S":"W",
+                        "W":"N"}[this.direction];
+    }
+    this.recall_flan();
   }
 }
 
@@ -458,10 +516,10 @@ b.axes[3][1].floor="r";
 b.axes[3][2].floor="r";
 b.axes[3][3].floor="r";
 b.axes[3][4].floor="r";
-h0 = new House(b,0,4,"E","1");
-h0 = new House(b,1,5,"S","2");
-h0 = new House(b,1,3,"N","3");
-h0 = new House(b,2,3,"N","4");
+h1 = new House(b,0,4,"E","1");
+h2 = new House(b,1,5,"S","2");
+h3 = new House(b,1,3,"N","3");
+h4 = new House(b,2,3,"N","4");
 
 setInterval(function(){
   b.step();
@@ -472,6 +530,15 @@ $(document).ready(function(){
     $("#reset").click(function(){
         b.reset_day();
     });
+    $("#rotate_house").click(function(){
+        b.selected_tool = "rotate_house";
+    });
+    $("#road_toggle").click(function(){
+        b.selected_tool = "road_toggle";
+    });
+    $("#house_toggle").click(function(){
+        b.selected_tool = "house_toggle";
+    });
 });
 
 </script>
@@ -480,8 +547,14 @@ $(document).ready(function(){
  <div id="board_container">
 
  </div>
- <div id="buttons">
-    <button id="reset"> reset </button>
+ <div id="reset_button">
+    <button id="reset"> Reset </button>
+ </div>
+ <div id="tools">
+ Tools:
+ <button id="rotate_house"> Rotate House </button>
+ <button id="road_toggle"> Road Toggle </button>
+ <button id="house_toggle"> House Toggle </button>
  </div>
 </body>
 
