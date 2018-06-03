@@ -164,14 +164,14 @@ Board.prototype.reset_day = function reset_day(){
 Board.prototype.render = function render(){
   var board_container = $("#board_container")
   var board_table = $("<table>")
-  for (var i=this.height-1;i>=0;i--){
+  for (var j=this.height-1;j>=0;j--){
     var tr = $("<tr>")
-    for (var j=0;j<this.width;j++){
+    for (var i=0;i<this.width;i++){
       var td = $("<td>")
-      if (this.axes[j][i].floor === "r") {
+      if (this.axes[i][j].floor === "r") {
         td.addClass("road")
       }
-      td.append(this.axes[j][i].appearance());
+      td.append(this.axes[i][j].appearance());
 
       clickhandlerfactory = function(i,j,board){
         return function(){
@@ -181,7 +181,7 @@ Board.prototype.render = function render(){
           //} else if (board.axes[j][i].floor === ''){
           //  board.axes[j][i].floor = 'r'
           //}
-          board.axes[j][i].on_click();
+          board.axes[i][j].on_click();
         }
       }
       td.bind("click",clickhandlerfactory(i,j,this))
