@@ -107,6 +107,15 @@ Board.prototype.step = function step(){
   };
   this.number_of_steps ++;
 }
+Board.prototype.recall_flan = function recall_flan(){
+  for (let house of this.houses){
+    house.recall_flan();
+  };
+}
+Board.prototype.reset_day = function reset_day(){
+  this.number_of_steps = 0;
+  this.recall_flan();
+}
 
 Board.prototype.render = function render(){
   var board_container = $("#board_container")
@@ -410,16 +419,18 @@ Flan.prototype.absolute2local = function absolute2local(x,y){
 }
 
 class House {
-  constructor(board,i,j,direction){
+  constructor(board,i,j,direction, decorator = ""){
     this.board = board;
     this.tile = board.axes[i][j];
     this.direction = direction;
+    this.decorator = decorator;
     this.flan = new Flan(board,i,j,direction);
+    this.flan.decorator = decorator;
     this.board.houses.push(this);
     this.tile.houses.push(this);
   }
   appearance(){
-    return "H"+arrows[this.direction];
+    return "H"+this.decorator+arrows[this.direction];
   }
   recall_flan(){
     this.flan.move_to(this.tile.x,this.tile.y,this.direction);
@@ -437,6 +448,7 @@ b.axes[2][1].floor="r";
 b.axes[2][2].floor="r";
 b.axes[3][1].floor="r";
 b.axes[4][1].floor="r";
+b.axes[3][2].floor="r";
 f0 = new Flan(b,1,1,'W');
 f0.decorator = '0';
 f1 = new Flan(b,2,1,'W');
@@ -449,6 +461,8 @@ f4 = new Flan(b,4,1,'W');
 f4.decorator = '4';
 f5 = new Flan(b,0,1,'E');
 f5.decorator = '5';
+f6 = new Flan(b,2,3,'S');
+f6.decorator = '6';
 
 setInterval(function(){
   b.step();
