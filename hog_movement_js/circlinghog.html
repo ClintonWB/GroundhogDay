@@ -105,6 +105,20 @@ Tile.prototype.on_click = function on_click(){
       break;      
   }
   this.board.is_changed = true;
+  this.render_update();
+}
+Tile.prototype.id = function id(){
+  return 'tile_'+this.x+'_'+this.y;
+}
+Tile.prototype.render_update = function render_update(){
+  var td = $('#'+this.id());
+  td.empty();
+  td.append(this.appearance());
+  if (this.floor === 'r'){
+    td.addClass('road');
+  } else {
+    td.removeClass('road');
+  }
 }
 
 Board = function Board(width,height){
@@ -167,11 +181,13 @@ Board.prototype.render = function render(){
   for (var j=this.height-1;j>=0;j--){
     var tr = $("<tr>")
     for (var i=0;i<this.width;i++){
-      var td = $("<td>")
-      if (this.axes[i][j].floor === "r") {
+      var td = $("<td>");
+      var tile = this.axes[i][j];
+      td.attr("id",tile.id());
+      if (tile.floor === "r") {
         td.addClass("road")
       }
-      td.append(this.axes[i][j].appearance());
+      td.append(tile.appearance());
 
       clickhandlerfactory = function(i,j,board){
         return function(){
@@ -191,8 +207,17 @@ Board.prototype.render = function render(){
   }
   board_container.empty()
   board_container.append(board_table)
-  board_container.append(`This day has gone on for ${this.number_of_steps} steps.\n`)
-  board_container.append(`The current tool is ${this.selected_tool}.`)
+}
+Board.prototype.render_update= function render_update(){
+  for(var i=0;i<this.width;i++){
+    for(var j=0;j<this.height;j++){
+      this.axes[i][j].render_update();
+    }
+  }
+  $("#step_count").empty().append(`This day has gone on for ${this.number_of_steps} steps.`);
+}
+Board.prototype.update_tool_display = function update_tool_display(){
+  $("#selected_tool").empty().append(`The current tool is ${this.selected_tool}.`);
 }
 
 
@@ -522,9 +547,14 @@ h2 = new House(b,1,5,"S","2");
 h3 = new House(b,1,3,"N","3");
 h4 = new House(b,2,3,"N","4");
 
+$(document).ready(function(){
+  b.render();
+  b.update_tool_display();
+});
+
 setInterval(function(){
   b.step();
-  b.render();
+  b.render_update();
   },500)
 
 $(document).ready(function(){
@@ -533,12 +563,15 @@ $(document).ready(function(){
     });
     $("#rotate_house").click(function(){
         b.selected_tool = "rotate_house";
+        b.update_tool_display();
     });
     $("#road_toggle").click(function(){
         b.selected_tool = "road_toggle";
+        b.update_tool_display();
     });
     $("#house_toggle").click(function(){
         b.selected_tool = "house_toggle";
+        b.update_tool_display();
     });
 });
 
@@ -546,7 +579,9 @@ $(document).ready(function(){
 
 <body>
  <div id="board_container">
-
+ </div>
+ <div id="step_count">
+ This day has gone on for 0 steps.
  </div>
  <div id="reset_button">
     <button id="reset"> Reset </button>
@@ -556,6 +591,8 @@ $(document).ready(function(){
  <button id="rotate_house"> Rotate House </button>
  <button id="road_toggle"> Road Toggle </button>
  <button id="house_toggle"> House Toggle </button>
+ </div>
+ <div id="selected_tool">
  </div>
 </body>
 
