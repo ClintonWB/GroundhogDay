@@ -191,12 +191,6 @@ Board.prototype.render = function render(){
 
       clickhandlerfactory = function(i,j,board){
         return function(){
-          //board.is_changed = true;
-          //if(board.axes[j][i].floor === 'r'){
-          //  board.axes[j][i].floor = '';
-          //} else if (board.axes[j][i].floor === ''){
-          //  board.axes[j][i].floor = 'r'
-          //}
           board.axes[i][j].on_click();
         }
       }
@@ -207,6 +201,8 @@ Board.prototype.render = function render(){
   }
   board_container.empty()
   board_container.append(board_table)
+  this.update_tool_display();
+  this.update_step_display();
 }
 Board.prototype.render_update= function render_update(){
   for(var i=0;i<this.width;i++){
@@ -214,10 +210,13 @@ Board.prototype.render_update= function render_update(){
       this.axes[i][j].render_update();
     }
   }
-  $("#step_count").empty().append(`This day has gone on for ${this.number_of_steps} steps.`);
+  this.update_step_display();
 }
 Board.prototype.update_tool_display = function update_tool_display(){
   $("#selected_tool").empty().append(`The current tool is ${this.selected_tool}.`);
+}
+Board.prototype.update_step_display = function update_step_display(){
+  $("#step_count").empty().append(`This day has gone on for ${this.number_of_steps} steps.`);
 }
 
 
@@ -339,7 +338,6 @@ Flan.prototype.following = function following(){
   var test_tile = temp_flan.tile();
   var test_direction = temp_flan.going();
   temp_flan.deconstruct();
-  //if (test_tile === this.tile) return false;
   return test_tile.flan_going(test_direction);
 }
 Flan.prototype.going_to_t = function going_to_t(){
@@ -549,7 +547,6 @@ h4 = new House(b,2,3,"N","4");
 
 $(document).ready(function(){
   b.render();
-  b.update_tool_display();
 });
 
 setInterval(function(){
@@ -560,6 +557,7 @@ setInterval(function(){
 $(document).ready(function(){
     $("#reset").click(function(){
         b.reset_day();
+        b.render_update();
     });
     $("#rotate_house").click(function(){
         b.selected_tool = "rotate_house";
