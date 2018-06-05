@@ -39,6 +39,9 @@ Tile = function Tile(board, x, y, floor){
 }
 Tile.prototype.appearance = function appearance(){
   var s=$("<span>");
+  if (this.interactable){
+    s.append(this.interactable.appearance());
+  }
   for (let house of this.houses){
     s.append(house.appearance());
   };
@@ -530,6 +533,116 @@ class House {
 }
 
 
+// This is an "interface"; subclasses must implement the
+// considerFlan method, register method, and 
+class InteractableMatcher{
+  constructor(interactable){
+    this.interactable = interactable;
+  }
+
+  considerFlan(flan){
+    return [flan];
+  }
+}
+
+class RejectionMatcher extends InteractableMatcher{
+  constructor(interactable,tiles){
+    super(interactable)
+    this.flans = [];
+  }
+
+  considerFlan(flan){
+    return [flan];
+  }
+}
+
+class GreedyMatcher extends InteractableMatcher{
+  constructor(interactable){
+    super(interactable)
+    this.flans = [];
+  }
+
+  considerFlan(flan){
+    this.flans.push(flan);
+    return [];
+  }
+}
+
+class InteractableMatcherList{
+  constructor(){
+    this.interactableMatchers = {};
+  }
+  getInteractableMatcher (key){
+    if (key in this.interactableMatchers){
+      return this.interactableMatchers[key];
+    }
+    if(key.interactable === null){
+      newim = RejectionMatcher();
+    }
+    else {
+      newim = key.interactable.makeMatcher();
+    }
+    interactableMatchers[key] = newim;
+    return newim;
+  }
+}
+
+class Interactable{
+}
+
+class Resource extends Interactable{
+  constructor(type,number){
+    super();
+    this.type = type;
+    this.number = number;
+  }
+
+  makeMatcher(){
+    return GreedyMatcher(this);
+  }
+
+  interact(flans){
+    for(let flan of flans){
+      flan.holding = type;
+    }
+  }
+
+  appearance(){ return "B"};
+}
+
+class Castle extends Interactable{
+  makeMatcher(){
+    return GreedyMatcher(this);
+  }
+
+  interact(flans){
+    for (let flan of flans){
+      flan.holding = null;
+    }
+  }
+
+  appearance(){return "C"};
+}
+
+
+class FlanMatchmaker {
+  constructor(flans){
+    this.flans = flans;
+  }
+
+  resolve(){
+    var flanqueue = this.flans.map(x => [x,x.neighbor_tiles])
+                        .map(y=>[y[0],[y[1].front,y[1].left,y[1].right,y[1].back]]);
+    while(flanqueue.length !== 0){
+      [currentflan,directions]  = flanqueue.shift();
+      ;
+    }
+  }
+}
+
+
+
+
 b = new Board(5,6);
 
 b.axes[1][4].floor="r";
@@ -540,6 +653,8 @@ b.axes[3][1].floor="r";
 b.axes[3][2].floor="r";
 b.axes[3][3].floor="r";
 b.axes[3][4].floor="r";
+b.axes[3][5].interactable = new Resource("Berry",1);
+b.axes[1][2].interactable = new Castle();
 h1 = new House(b,0,4,"E","1");
 h2 = new House(b,1,5,"S","2");
 h3 = new House(b,1,3,"N","3");
