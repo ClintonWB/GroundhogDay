@@ -618,6 +618,7 @@ class Game_window {
   }
   draw_tile(tile,fraction=1){
     if (tile === undefined) return;
+    if (tile.houses.length>0) this.draw_house(tile.houses[0]);
     for(let flan of tile.flans){
       this.draw_flan(flan,fraction);
     }
@@ -645,8 +646,6 @@ class Game_window {
       };
       var current_coords = this.hop_path(old_coords,new_coords,fraction);
     }
-    
-    //console.log(`my current coordinates are ${current_coords.x}, ${current_coords.y}`);
 
     ctx.translate(current_coords.x,current_coords.y);
     ctx.translate(0,17);
@@ -669,6 +668,18 @@ class Game_window {
     }
     ctx.rotate(rotation_angle);
     ctx.drawImage(hogimg,-17,-17);
+    ctx.restore();
+  }
+  draw_house(house){
+    var ctx=this.context;
+    ctx.save();
+    this.skew_context();
+    ctx.translate(this.tile_size * house.tile.x, this.tile_size * (house.board.height - 1 - house.tile.y));
+    ctx.beginPath();
+    ctx.arc(0.5*this.tile_size,0.5*this.tile_size,0.35*this.tile_size,0,2*Math.PI);
+    ctx.fillStyle="#663300";
+    ctx.fill();
+    ctx.stroke();
     ctx.restore();
   }
   draw_tiles(fraction=1){
