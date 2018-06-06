@@ -135,6 +135,7 @@ Board = function Board(width,height){
   this.number_of_steps = 0;
   this.houses = [];
   this.selected_tool = "road_toggle";
+  this.window = new Game_window(this);
 }
 
 Board.prototype.remove_flan = function remove_flan(flan){
@@ -152,6 +153,8 @@ Board.prototype.remove_house = function remove_house(house){
 Board.prototype.step = function step(){
   for (let flan of this.flans){
     flan.has_stepped = false;
+    flan.hopped_from = false;
+    flan.previous_stack_position = flan.stack_position();
   };
   if (this.is_changed){
     for (let flan of this.flans){
@@ -203,6 +206,7 @@ Board.prototype.render = function render(){
   board_container.append(board_table)
   this.update_tool_display();
   this.update_step_display();
+  this.window.draw();
 }
 Board.prototype.render_update= function render_update(){
   for(var i=0;i<this.width;i++){
@@ -211,6 +215,7 @@ Board.prototype.render_update= function render_update(){
     }
   }
   this.update_step_display();
+  this.window.draw();
 }
 Board.prototype.update_tool_display = function update_tool_display(){
   $("#selected_tool").empty().append(`The current tool is ${this.selected_tool}.`);
@@ -238,9 +243,15 @@ Flan = function Flan(board,x,y,direction){
   this.looped = false;
   this.stuck = false;
   this.decorator = '';
+  this.hopped_from = false;
+  this.previous_stack_position = 0;
   //change other variables upon creation
   board.flans.push(this);
   board.axes[x][y].flans.push(this);
+}
+
+Flan.prototype.stack_position = function stack_position(){
+  return this.tile().flans.indexOf(this);
 }
 
 Flan.prototype.tile = function tile(){
@@ -265,7 +276,8 @@ Flan.prototype.appearance = function appearance(){
 };
 Flan.prototype.move = function move(move_direction = this.going()){
   if (move_direction === '') return;
-  this.board.axes[this.x][this.y].remove_flan(this);
+  this.hopped_from = this.tile();
+  this.tile().remove_flan(this);
   switch(move_direction){
     case "N":
       this.y += 1;
@@ -529,50 +541,6 @@ class House {
   }
 }
 
-
-b = new Board(5,6);
-
-b.axes[1][4].floor="r";
-b.axes[2][1].floor="r";
-b.axes[2][2].floor="r";
-b.axes[2][4].floor="r";
-b.axes[3][1].floor="r";
-b.axes[3][2].floor="r";
-b.axes[3][3].floor="r";
-b.axes[3][4].floor="r";
-h1 = new House(b,0,4,"E","1");
-h2 = new House(b,1,5,"S","2");
-h3 = new House(b,1,3,"N","3");
-h4 = new House(b,2,3,"N","4");
-
-$(document).ready(function(){
-  b.render();
-});
-
-setInterval(function(){
-  b.step();
-  b.render_update();
-  },500)
-
-$(document).ready(function(){
-    $("#reset").click(function(){
-        b.reset_day();
-        b.render_update();
-    });
-    $("#rotate_house").click(function(){
-        b.selected_tool = "rotate_house";
-        b.update_tool_display();
-    });
-    $("#road_toggle").click(function(){
-        b.selected_tool = "road_toggle";
-        b.update_tool_display();
-    });
-    $("#house_toggle").click(function(){
-        b.selected_tool = "house_toggle";
-        b.update_tool_display();
-    });
-});
-
 class Game_window {
   constructor(board) {
     this.board=board;
@@ -624,13 +592,120 @@ class Game_window {
     };
     ctx.restore();
   }
+  skewed_position(x,y){
+    var horizontal_half = this.tile_size * Math.sqrt(0.5);
+    var vertical_half = horizontal_half * 0.5; 
+    var obj = {x:horizontal_half,y: vertical_half * (this.board.height-1)};//this is (0,0)
+    obj.x += horizontal_half*(x+y);
+    obj.y += vertical_half*(x-y);
+    return obj;
+  }
+  clear(){
+    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+  draw(){
+    this.clear();
+    this.context.save();
+    this.skew_context();
+    this.draw_floor();
+    this.draw_roads();
+    this.context.restore();
+    this.draw_tiles();
+  }
+  draw_tile(tile){
+    if (tile === undefined) return;
+    var ctx = this.context;
+    ctx.save();
+    var translate=this.skewed_position(tile.x,tile.y);
+    ctx.translate(translate.x,translate.y);
+    for(let flan of tile.flans){
+      this.draw_flan(flan);
+      ctx.translate(0,-10);
+    }
+    ctx.restore();
+  }
+  draw_flan(flan, fraction = 1){
+    var ctx = this.context;
+    var hogimg = document.getElementById("groundhog");
+    ctx.save();
+    ctx.translate(0,17);
+    var rotation_angle = Math.PI*0.5;
+    switch(flan.direction){
+      case "N":
+        rotation_angle = 0;
+        break;
+      case "E":
+        rotation_angle = Math.PI * 0.5;
+        break;
+      case "S":
+        rotation_angle = Math.PI;
+        break;
+      case "W":
+        rotation_angle = Math.PI * 1.5;
+        break;
+      default:
+        rotation_angle = -Math.PI *0.25; 
+    }
+    ctx.rotate(rotation_angle);
+    ctx.drawImage(hogimg,-17,-17);
+    ctx.restore();
+  }
+  draw_tiles(){
+    for(var row=0;row<this.board.width+this.board.height;row++){
+      for(var from_left=0; from_left<this.board.width;from_left++){
+        this.draw_tile(this.board.axes[from_left][this.board.height-row+from_left-1]);
+      };
+    };
+  }
+  hop_path(start,end,fraction){//feed this objects with x and y
+    var jumpheight = 20;
+    var x = start.x * (1 - fraction) + end.x * fraction;
+    var y = start.y * (1 - fraction) + end.y * fraction + jumpheight * fraction * (1 - fraction);
+  }
 }
 
 $(document).ready(function(){
-  var window = new Game_window(b);
-  window.skew_context();
-  window.draw_floor();
-  window.draw_roads();
+
+  b = new Board(5,6);
+
+  b.axes[1][4].floor="r";
+  b.axes[2][1].floor="r";
+  b.axes[2][2].floor="r";
+  b.axes[2][4].floor="r";
+  b.axes[3][1].floor="r";
+  b.axes[3][2].floor="r";
+  b.axes[3][3].floor="r";
+  b.axes[3][4].floor="r";
+  h1 = new House(b,0,4,"E","1");
+  h2 = new House(b,1,5,"S","2");
+  h3 = new House(b,1,3,"N","3");
+  h4 = new House(b,2,3,"N","4");
+
+  b.render();
+});
+
+setInterval(function(){
+  b.step();
+  b.render_update();
+  },500)
+
+$(document).ready(function(){
+    $("#reset").click(function(){
+        b.reset_day();
+        b.render_update();
+    });
+    $("#rotate_house").click(function(){
+        b.selected_tool = "rotate_house";
+        b.update_tool_display();
+    });
+    $("#road_toggle").click(function(){
+        b.selected_tool = "road_toggle";
+        b.update_tool_display();
+    });
+    $("#house_toggle").click(function(){
+        b.selected_tool = "house_toggle";
+        b.update_tool_display();
+    });
 });
 
 </script>
@@ -653,9 +728,13 @@ $(document).ready(function(){
  <div id="selected_tool">
  </div>
 
-  <canvas id="myCanvas" width="400" height="300"
-    style="border:1px solid #000000;">
-  </canvas> 
+ <canvas id="myCanvas" width="400" height="300"
+   style="border:1px solid #000000;">
+ </canvas> 
+ 
+ <p hidden> resources:
+ <img id="groundhog" src=resources/groundhog.png>
+ </p>
 
 </body>
 
