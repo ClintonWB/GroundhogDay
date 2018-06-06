@@ -573,6 +573,66 @@ $(document).ready(function(){
     });
 });
 
+class Game_window {
+  constructor(board) {
+    this.board=board;
+    this.canvas = document.getElementById("myCanvas");
+    this.context = this.canvas.getContext("2d");
+    this.tile_size = 50;
+  }
+  skew_context(){
+    var ctx = this.context;
+    
+    ctx.translate(this.tile_size * this.board.height * Math.sqrt(0.5) ,0);
+    ctx.scale(1,0.5);
+    ctx.rotate(Math.PI/4);
+  }
+  draw_floor(){
+    var ctx = this.context;
+    ctx.save();
+
+    var gradient = ctx.createRadialGradient(this.tile_size*0.5,this.tile_size*0.5,this.tile_size*0.1,
+                                            this.tile_size*0.5,this.tile_size*0.5,this.tile_size*0.8);
+    gradient.addColorStop(0,"#00cc00");
+    gradient.addColorStop(1,"white");
+    ctx.fillStyle = gradient;
+    
+    for (var j=0;j<this.board.height;j++){
+      for (var i=0;i<this.board.width;i++){
+        ctx.fillRect(0,0,this.tile_size,this.tile_size);
+        ctx.translate(this.tile_size,0);
+      };
+      ctx.translate(- this.board.width * this.tile_size, this.tile_size);
+    };
+
+    ctx.restore();
+  }
+  draw_roads(){
+    var ctx = this.context;
+    ctx.save();
+
+    ctx.fillStyle = "gray";
+    
+    for (var j=this.board.height-1;j>=0;j--){
+      for (var i=0;i<this.board.width;i++){
+        if(this.board.axes[i][j].floor === 'r'){
+          ctx.fillRect(0.1*this.tile_size,0.1*this.tile_size,0.8*this.tile_size,0.8*this.tile_size);
+        }
+        ctx.translate(this.tile_size,0);
+      };
+      ctx.translate(- this.board.width * this.tile_size, this.tile_size);
+    };
+    ctx.restore();
+  }
+}
+
+$(document).ready(function(){
+  var window = new Game_window(b);
+  window.skew_context();
+  window.draw_floor();
+  window.draw_roads();
+});
+
 </script>
 
 <body>
@@ -592,6 +652,11 @@ $(document).ready(function(){
  </div>
  <div id="selected_tool">
  </div>
+
+  <canvas id="myCanvas" width="400" height="300"
+    style="border:1px solid #000000;">
+  </canvas> 
+
 </body>
 
 </html>
