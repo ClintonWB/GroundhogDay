@@ -29,6 +29,10 @@ td{
 
 <script type="text/javascript">
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 Tile = function Tile(board, x, y, floor){
   this.board = board;
   this.x = x;
@@ -215,7 +219,7 @@ Board.prototype.render_update= function render_update(){
     }
   }
   this.update_step_display();
-  this.window.draw();
+  this.window.animate();
 }
 Board.prototype.update_tool_display = function update_tool_display(){
   $("#selected_tool").empty().append(`The current tool is ${this.selected_tool}.`);
@@ -603,31 +607,48 @@ class Game_window {
   clear(){
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
-  draw(){
+  draw(fraction=1){
     this.clear();
     this.context.save();
     this.skew_context();
     this.draw_floor();
     this.draw_roads();
     this.context.restore();
-    this.draw_tiles();
+    this.draw_tiles(fraction);
   }
-  draw_tile(tile){
+  draw_tile(tile,fraction=1){
     if (tile === undefined) return;
-    var ctx = this.context;
-    ctx.save();
-    var translate=this.skewed_position(tile.x,tile.y);
-    ctx.translate(translate.x,translate.y);
     for(let flan of tile.flans){
-      this.draw_flan(flan);
-      ctx.translate(0,-10);
+      this.draw_flan(flan,fraction);
     }
-    ctx.restore();
   }
   draw_flan(flan, fraction = 1){
+    var stack_separation = 10;
     var ctx = this.context;
-    var hogimg = document.getElementById("groundhog");
     ctx.save();
+    var hogimg = document.getElementById("groundhog");
+
+    var new_x = flan.x;
+    var new_y = flan.y;
+    var new_coords = {
+      x : this.skewed_position(new_x,new_y).x,
+      y : this.skewed_position(new_x,new_y).y - (stack_separation * flan.stack_position())
+    };
+    if (!flan.hopped_from || fraction === 1) {
+      var current_coords = new_coords;  
+    } else {
+      var old_x = flan.hopped_from.x;
+      var old_y = flan.hopped_from.y;
+      var old_coords = {
+        x : this.skewed_position(old_x,old_y).x,
+        y : this.skewed_position(old_x,old_y).y - (stack_separation * flan.previous_stack_position) 
+      };
+      var current_coords = this.hop_path(old_coords,new_coords,fraction);
+    }
+    
+    //console.log(`my current coordinates are ${current_coords.x}, ${current_coords.y}`);
+
+    ctx.translate(current_coords.x,current_coords.y);
     ctx.translate(0,17);
     var rotation_angle = Math.PI*0.5;
     switch(flan.direction){
@@ -650,17 +671,28 @@ class Game_window {
     ctx.drawImage(hogimg,-17,-17);
     ctx.restore();
   }
-  draw_tiles(){
+  draw_tiles(fraction=1){
     for(var row=0;row<this.board.width+this.board.height;row++){
       for(var from_left=0; from_left<this.board.width;from_left++){
-        this.draw_tile(this.board.axes[from_left][this.board.height-row+from_left-1]);
+        this.draw_tile(this.board.axes[from_left][this.board.height-row+from_left-1], fraction);
       };
     };
   }
   hop_path(start,end,fraction){//feed this objects with x and y
     var jumpheight = 20;
-    var x = start.x * (1 - fraction) + end.x * fraction;
-    var y = start.y * (1 - fraction) + end.y * fraction + jumpheight * fraction * (1 - fraction);
+    var obj ={
+      x : start.x * (1 - fraction) + end.x * fraction,
+      y : start.y * (1 - fraction) + end.y * fraction - jumpheight * fraction * (1 - fraction)
+    }
+    return obj;
+  }
+  async animate(){
+    var frames = 25;
+    var time = 250;
+    for(var i=0; i<=frames; i++){
+      this.draw(i / frames);
+      await sleep(time/frames);
+    }
   }
 }
 
