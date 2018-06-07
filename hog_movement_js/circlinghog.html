@@ -552,16 +552,39 @@ class Game_window {
     this.context = this.canvas.getContext("2d");
     this.tile_size = 50;
     this.shift = {x:this.tile_size * this.board.height * Math.sqrt(0.5),
-                  y:0};
+                  y:20};
     this.canvas.addEventListener("click",this.my_click.bind(this));
+    this.canvas.addEventListener("keydown",this.my_key_down.bind(this));
+  }
+  my_key_down(event){
+    var key = event.key;
+    var stepsize = 10;
+    switch(key){
+      case 'w':
+      case 'W':
+      case 'ArrowUp':
+        this.shift.y+=stepsize;
+        break;
+      case 'a':
+      case 'A':
+      case 'ArrowLeft':
+        this.shift.x+=stepsize;
+        break;
+      case 's':
+      case 'S':
+      case 'ArrowDown':
+        this.shift.y-=stepsize;
+        break;
+      case 'd':
+      case 'D':
+      case 'ArrowRight':
+        this.shift.x-=stepsize;
+        break;
+    }
   }
   my_click(event){
     var tile = this.tile_of(event.offsetX,event.offsetY);
     tile.on_click();
-  }
-  mod_shift(){
-    this.shift.x = mod(this.shift.x,this.canvas.width);
-    this.shift.y = mod(this.shift.y,this.canvas.height);
   }
   skew_context(){
     var ctx = this.context;
@@ -889,6 +912,8 @@ class Game_window {
   }
   do_everywhere_visible(myfun,fraction = 1){
     var first_coords = this.skewed_position_inverse(0,0);
+    first_coords.x = Math.floor(first_coords.x);
+    first_coords.y = Math.floor(first_coords.y);
     var row_length = 2 + Math.floor( this.canvas.width / (this.tile_size * Math.sqrt(2)) );
     var num_rows = 2 + Math.floor( this.canvas.height / (this.tile_size * Math.sqrt(0.5)) );
     for(var row = 0; row<num_rows; row++){
@@ -972,7 +997,7 @@ $(document).ready(function(){
  </div>
 
  <canvas id="myCanvas" width="400" height="300"
-   style="border:1px solid #000000;">
+   style="border:1px solid #000000;" tabindex='1'> 
  </canvas> 
  
  <p hidden> resources:
