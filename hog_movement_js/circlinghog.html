@@ -719,6 +719,10 @@ class Game_window {
     ctx.fillStyle="#663300";
     ctx.fill();
     ctx.stroke();
+    ctx.fillStyle="white";
+    ctx.font = "20px Times New Roman";
+    ctx.textAlign = "center";
+    ctx.fillText(arrows[house.direction],0.5*this.tile_size,0.5*this.tile_size);
     ctx.restore();
   }
   draw_tiles(fraction=1){
