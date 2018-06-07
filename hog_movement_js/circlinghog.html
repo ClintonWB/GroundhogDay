@@ -210,7 +210,7 @@ Board.prototype.render = function render(){
   board_container.append(board_table)
   this.update_tool_display();
   this.update_step_display();
-  this.window.draw();
+  this.window.draw_visible();
 }
 Board.prototype.render_update= function render_update(){
   for(var i=0;i<this.width;i++){
@@ -589,6 +589,31 @@ class Game_window {
 
     ctx.restore();
   }
+  move_context_to_skewed(x,y){// feed this grid coordinates, not canvas coordinates.
+    this.skew_context();
+    this.context.translate(0,(this.board.height-1) * this.tile_size);//get to (0,0)
+    this.context.translate(x * this.tile_size, -y*this.tile_size);//get to the correct position
+  }
+  move_context_to(x,y){// feed this grid coordinates, not canvas coordinates.
+    var newcoords = skewed_position(x,y);
+    this.context.translate(newcoords.x,newcoords.y);
+  }
+  draw_floor_at(x,y){ // feed this grid coordinates, not canvas coordinates.
+    var ctx = this.context;
+    ctx.save();
+
+    var gradient = ctx.createRadialGradient(this.tile_size*0.5,this.tile_size*0.5,this.tile_size*0.1,
+                                            this.tile_size*0.5,this.tile_size*0.5,this.tile_size*0.8);
+    gradient.addColorStop(0,"#00cc00");
+    gradient.addColorStop(1,"white");
+    ctx.fillStyle = gradient;
+    
+    this.move_context_to_skewed(x,y);
+    ctx.fillRect(0,0,this.tile_size,this.tile_size);
+
+    ctx.restore();
+  }
+  /*
   draw_roads(){
     var ctx = this.context;
     ctx.save();
@@ -604,6 +629,20 @@ class Game_window {
       };
       ctx.translate(- this.board.width * this.tile_size, this.tile_size);
     };
+    ctx.restore();
+  }
+  */
+  draw_road_at(x,y){
+    var tile_x = mod(x,this.board.width);
+    var tile_y = mod(y,this.board.height);
+    if (this.board.axes[tile_x][tile_y].floor === '') return;
+    var ctx = this.context;
+    ctx.save();
+    
+    this.move_context_to_skewed(x,y);
+    ctx.fillStyle = "gray";
+    ctx.fillRect(0.1*this.tile_size,0.1*this.tile_size,0.8*this.tile_size,0.8*this.tile_size);
+
     ctx.restore();
   }
   skewed_position(x,y){
@@ -637,6 +676,7 @@ class Game_window {
   clear(){
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
+  /*
   draw(fraction=1){
     this.clear();
     this.context.save();
@@ -646,6 +686,8 @@ class Game_window {
     this.context.restore();
     this.draw_tiles(fraction);
   }
+  */
+  /*
   draw_tile(tile,fraction=1){
     if (tile === undefined) return;
     if (tile.houses.length>0) this.draw_house(tile.houses[0]);
@@ -653,6 +695,8 @@ class Game_window {
       this.draw_flan(flan,fraction);
     }
   }
+  */
+  /*
   draw_flan(flan, fraction = 1){
     var stack_separation = 10;
     var ctx = this.context;
@@ -709,6 +753,77 @@ class Game_window {
     ctx.drawImage(hogimg,-17,-17);
     ctx.restore();
   }
+  */
+  draw_flan_at(flan,x,y,fraction=1){
+    var stack_separation = 10;
+    var ctx = this.context;
+    ctx.save();
+    var hogimg = document.getElementById("groundhog");
+
+    var new_x = x;
+    var new_y = y;
+    var new_coords = {
+      x : this.skewed_position(new_x,new_y).x,
+      y : this.skewed_position(new_x,new_y).y - (stack_separation * flan.stack_position())
+    };
+    if (!flan.hopped_from || fraction === 1) {
+      var current_coords = new_coords;  
+    } else {
+      var old_x = x;
+      var old_y = y;
+      switch(flan.direction){
+        case "N":
+          old_y -= 1;
+          break;
+        case "S":
+          old_y += 1;
+          break;
+        case "E":
+          old_x -= 1;
+          break;
+        case "W":
+          old_x += 1;
+          break;
+      }
+      var old_coords = {
+        x : this.skewed_position(old_x,old_y).x,
+        y : this.skewed_position(old_x,old_y).y - (stack_separation * flan.previous_stack_position) 
+      };
+      var current_coords = this.hop_path(old_coords,new_coords,fraction);
+    }
+
+    ctx.translate(current_coords.x,current_coords.y);
+    ctx.translate(0,17);
+    var rotation_angle = Math.PI*0.5;
+    switch(flan.direction){
+      case "N":
+        rotation_angle = 0;
+        break;
+      case "E":
+        rotation_angle = Math.PI * 0.5;
+        break;
+      case "S":
+        rotation_angle = Math.PI;
+        break;
+      case "W":
+        rotation_angle = Math.PI * 1.5;
+        break;
+      default:
+        rotation_angle = -Math.PI *0.25; 
+    }
+    ctx.rotate(rotation_angle);
+    ctx.drawImage(hogimg,-17,-17);
+    ctx.restore();    
+  }
+  draw_flans_at(x,y,fraction = 1){
+    var board_x = mod(x,this.board.width);
+    var board_y = mod(y,this.board.height);
+    var tile = this.board.axes[board_x][board_y];
+    for(let flan of tile.flans){
+      this.draw_flan_at(flan,x,y,fraction);
+    }
+  }
+  /*
   draw_house(house){
     var ctx=this.context;
     ctx.save();
@@ -725,6 +840,29 @@ class Game_window {
     ctx.fillText(arrows[house.direction],0.5*this.tile_size,0.5*this.tile_size);
     ctx.restore();
   }
+  */
+  draw_house_at(x,y){
+    var board_x = mod(x, this.board.width);
+    var board_y = mod(y, this.board.height);
+    var house = this.board.axes[board_x][board_y].houses[0];
+    if (house === undefined) return;
+    var ctx = this.context;
+    ctx.save();
+
+    this.move_context_to_skewed(x,y);
+    ctx.beginPath();
+    ctx.arc(0.5*this.tile_size,0.5*this.tile_size,0.35*this.tile_size,0,2*Math.PI);
+    ctx.fillStyle="#663300";
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle="white";
+    ctx.font = "20px Times New Roman";
+    ctx.textAlign = "center";
+    ctx.fillText(arrows[house.direction],0.5*this.tile_size,0.5*this.tile_size);
+
+    ctx.restore();
+  }
+  /*
   draw_tiles(fraction=1){
     for(var row=0;row<this.board.width+this.board.height;row++){
       for(var from_left=0; from_left<this.board.width;from_left++){
@@ -732,6 +870,7 @@ class Game_window {
       };
     };
   }
+  */
   hop_path(start,end,fraction){//feed this objects with x and y
     var jumpheight = 30;
     var obj ={
@@ -744,16 +883,28 @@ class Game_window {
     var frames = 25;
     var time = 250;
     for(var i=0; i<=frames; i++){
-      this.draw(i / frames);
+      this.draw_visible(i / frames);
       await sleep(time/frames);
     }
   }
-  //is_in_bounds(x,y,size=this.tile_size){
-  //  return !((x < 0-size)                 || 
-  //           (x > this.canvas.width+size) ||
-  //           (y < 0-size)                 ||
-  //           (y > this.canvas.height+size));
-  //}
+  do_everywhere_visible(myfun,fraction = 1){
+    var first_coords = this.skewed_position_inverse(0,0);
+    var row_length = 2 + Math.floor( this.canvas.width / (this.tile_size * Math.sqrt(2)) );
+    var num_rows = 2 + Math.floor( this.canvas.height / (this.tile_size * Math.sqrt(0.5)) );
+    for(var row = 0; row<num_rows; row++){
+      for(var column = -1; column<row_length; column++){
+        myfun.call(this,first_coords.x+row+column,first_coords.y-row+column  ,fraction);
+        myfun.call(this,first_coords.x+row+column,first_coords.y-row+column+1,fraction);
+      }
+    }
+  }
+  draw_visible(fraction=1){
+    this.clear();
+    this.do_everywhere_visible(this.draw_floor_at);
+    this.do_everywhere_visible(this.draw_road_at);
+    this.do_everywhere_visible(this.draw_house_at);
+    this.do_everywhere_visible(this.draw_flans_at,fraction);    
+  }
 }
 
 $(document).ready(function(){
