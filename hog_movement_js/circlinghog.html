@@ -213,15 +213,6 @@ Board.prototype.render = function render(){
   this.update_step_display();
   this.window.draw_visible();
 }
-Board.prototype.render_update= function render_update(){
-  for(var i=0;i<this.width;i++){
-    for(var j=0;j<this.height;j++){
-      this.axes[i][j].render_update();
-    }
-  }
-  this.update_step_display();
-  this.window.animate();
-}
 Board.prototype.update_tool_display = function update_tool_display(){
   $("#selected_tool").empty().append(`The current tool is ${this.selected_tool}.`);
 }
@@ -230,10 +221,10 @@ Board.prototype.update_step_display = function update_step_display(){
 }
 
 Board.prototype.next_frame = function next_frame(){
-  var fps = 100;
+  var frames_per_cycle = 100;
   this.frame++
-  this.window.draw_visible(this.frame / fps);
-  if (this.frame >= fps){
+  this.window.draw_visible(this.frame / frames_per_cycle);
+  if (this.frame >= frames_per_cycle){
     this.frame = 0;
     this.step();
     this.update_step_display();
@@ -633,10 +624,6 @@ class Game_window {
     this.context.translate(0,(this.board.height-1) * this.tile_size);//get to (0,0)
     this.context.translate(x * this.tile_size, -y*this.tile_size);//get to the correct position
   }
-  move_context_to(x,y){// feed this grid coordinates, not canvas coordinates.
-    var newcoords = skewed_position(x,y);
-    this.context.translate(newcoords.x,newcoords.y);
-  }
   draw_floor_at(x,y){ // feed this grid coordinates, not canvas coordinates.
     var ctx = this.context;
     ctx.save();
@@ -652,25 +639,6 @@ class Game_window {
 
     ctx.restore();
   }
-  /*
-  draw_roads(){
-    var ctx = this.context;
-    ctx.save();
-
-    ctx.fillStyle = "gray";
-    
-    for (var j=this.board.height-1;j>=0;j--){
-      for (var i=0;i<this.board.width;i++){
-        if(this.board.axes[i][j].floor === 'r'){
-          ctx.fillRect(0.1*this.tile_size,0.1*this.tile_size,0.8*this.tile_size,0.8*this.tile_size);
-        }
-        ctx.translate(this.tile_size,0);
-      };
-      ctx.translate(- this.board.width * this.tile_size, this.tile_size);
-    };
-    ctx.restore();
-  }
-  */
   draw_road_at(x,y){
     var tile_x = mod(x,this.board.width);
     var tile_y = mod(y,this.board.height);
@@ -715,84 +683,6 @@ class Game_window {
   clear(){
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
-  /*
-  draw(fraction=1){
-    this.clear();
-    this.context.save();
-    this.skew_context();
-    this.draw_floor();
-    this.draw_roads();
-    this.context.restore();
-    this.draw_tiles(fraction);
-  }
-  */
-  /*
-  draw_tile(tile,fraction=1){
-    if (tile === undefined) return;
-    if (tile.houses.length>0) this.draw_house(tile.houses[0]);
-    for(let flan of tile.flans){
-      this.draw_flan(flan,fraction);
-    }
-  }
-  */
-  /*
-  draw_flan(flan, fraction = 1){
-    var stack_separation = 10;
-    var ctx = this.context;
-    ctx.save();
-    var hogimg = document.getElementById("groundhog");
-
-    var new_x = flan.x;
-    var new_y = flan.y;
-    var new_coords = {
-      x : this.skewed_position(new_x,new_y).x,
-      y : this.skewed_position(new_x,new_y).y - (stack_separation * flan.stack_position())
-    };
-    if (!flan.hopped_from || fraction === 1) {
-      var current_coords = new_coords;  
-    } else {
-      var old_x = flan.hopped_from.x;
-      var old_y = flan.hopped_from.y;
-             if ((old_x-new_x)>1){ //this is so that the flan does not hop clear accross the screen when looping.
-        old_x = new_x-1;
-      } else if ((new_x-old_x)>1){
-        old_x = new_x+1;
-      } else if ((old_y-new_y)>1){
-        old_y = new_y-1;
-      } else if ((new_y-old_y)>1){
-        old_y = new_y+1;
-      }
-      var old_coords = {
-        x : this.skewed_position(old_x,old_y).x,
-        y : this.skewed_position(old_x,old_y).y - (stack_separation * flan.previous_stack_position) 
-      };
-      var current_coords = this.hop_path(old_coords,new_coords,fraction);
-    }
-
-    ctx.translate(current_coords.x,current_coords.y);
-    ctx.translate(0,17);
-    var rotation_angle = Math.PI*0.5;
-    switch(flan.direction){
-      case "N":
-        rotation_angle = 0;
-        break;
-      case "E":
-        rotation_angle = Math.PI * 0.5;
-        break;
-      case "S":
-        rotation_angle = Math.PI;
-        break;
-      case "W":
-        rotation_angle = Math.PI * 1.5;
-        break;
-      default:
-        rotation_angle = -Math.PI *0.25; 
-    }
-    ctx.rotate(rotation_angle);
-    ctx.drawImage(hogimg,-17,-17);
-    ctx.restore();
-  }
-  */
   draw_flan_at(flan,x,y,fraction=1){
     var stack_separation = 10;
     var ctx = this.context;
@@ -862,24 +752,6 @@ class Game_window {
       this.draw_flan_at(flan,x,y,fraction);
     }
   }
-  /*
-  draw_house(house){
-    var ctx=this.context;
-    ctx.save();
-    this.skew_context();
-    ctx.translate(this.tile_size * house.tile.x, this.tile_size * (house.board.height - 1 - house.tile.y));
-    ctx.beginPath();
-    ctx.arc(0.5*this.tile_size,0.5*this.tile_size,0.35*this.tile_size,0,2*Math.PI);
-    ctx.fillStyle="#663300";
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle="white";
-    ctx.font = "20px Times New Roman";
-    ctx.textAlign = "center";
-    ctx.fillText(arrows[house.direction],0.5*this.tile_size,0.5*this.tile_size);
-    ctx.restore();
-  }
-  */
   draw_house_at(x,y){
     var board_x = mod(x, this.board.width);
     var board_y = mod(y, this.board.height);
@@ -901,15 +773,6 @@ class Game_window {
 
     ctx.restore();
   }
-  /*
-  draw_tiles(fraction=1){
-    for(var row=0;row<this.board.width+this.board.height;row++){
-      for(var from_left=0; from_left<this.board.width;from_left++){
-        this.draw_tile(this.board.axes[from_left][this.board.height-row+from_left-1], fraction);
-      };
-    };
-  }
-  */
   hop_path(start,end,fraction){//feed this objects with x and y
     var jumpheight = 30;
     var obj ={
@@ -917,14 +780,6 @@ class Game_window {
       y : start.y * (1 - fraction) + end.y * fraction - jumpheight * fraction * (1 - fraction)
     }
     return obj;
-  }
-  async animate(){
-    var frames = 25;
-    var time = 250;
-    for(var i=0; i<=frames; i++){
-      this.draw_visible(i / frames);
-      await sleep(time/frames);
-    }
   }
   do_everywhere_visible(myfun,fraction = 1){
     var first_coords = this.skewed_position_inverse(0,0);
@@ -969,9 +824,6 @@ $(document).ready(function(){
 });
 
 setInterval(function(){
-//  b.step();
-//  b.render_update();
-//  },500)
   b.next_frame();
 },5)
 
