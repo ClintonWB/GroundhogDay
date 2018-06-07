@@ -551,11 +551,21 @@ class Game_window {
     this.canvas = document.getElementById("myCanvas");
     this.context = this.canvas.getContext("2d");
     this.tile_size = 50;
+    this.shift = {x:this.tile_size * this.board.height * Math.sqrt(0.5),
+                  y:0};
+    this.canvas.addEventListener("click",this.my_click.bind(this));
+  }
+  my_click(event){
+    var tile = this.tile_of(event.offsetX,event.offsetY);
+    tile.on_click();
+  }
+  mod_shift(){
+    this.shift.x = mod(this.shift.x,this.canvas.width);
+    this.shift.y = mod(this.shift.y,this.canvas.height);
   }
   skew_context(){
     var ctx = this.context;
-    
-    ctx.translate(this.tile_size * this.board.height * Math.sqrt(0.5) ,0);
+    ctx.translate(this.shift.x ,this.shift.y);
     ctx.scale(1,0.5);
     ctx.rotate(Math.PI/4);
   }
@@ -599,10 +609,30 @@ class Game_window {
   skewed_position(x,y){
     var horizontal_half = this.tile_size * Math.sqrt(0.5);
     var vertical_half = horizontal_half * 0.5; 
-    var obj = {x:horizontal_half,y: vertical_half * (this.board.height-1)};//this is (0,0)
+    var obj = {x:this.shift.x+horizontal_half * (1-this.board.height),
+               y:this.shift.y+vertical_half * (this.board.height-1)};//this is (0,0)
     obj.x += horizontal_half*(x+y);
     obj.y += vertical_half*(x-y);
     return obj;
+  }
+  skewed_position_inverse(x,y){
+    var horizontal_half = this.tile_size * Math.sqrt(0.5);
+    var vertical_half = horizontal_half * 0.5;
+    var newx = x - (this.shift.x+horizontal_half * (1-this.board.height));
+    var newy = y - (this.shift.y+vertical_half * (this.board.height-1));
+    newx /= horizontal_half;
+    newy /= vertical_half;
+    var obj = {x:( newx+newy )/2,
+               y:( newx-newy )/2+1}; // I don't know why this 1 belongs here.
+    return obj;
+  }
+  tile_of(x,y){
+    var reduced_coords = this.skewed_position_inverse(x,y);
+    reduced_coords.x = Math.floor(reduced_coords.x);
+    reduced_coords.y = Math.floor(reduced_coords.y);
+    reduced_coords.x = mod(reduced_coords.x,this.board.width);
+    reduced_coords.y = mod(reduced_coords.y,this.board.height);
+    return this.board.axes[reduced_coords.x][reduced_coords.y];
   }
   clear(){
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -714,6 +744,12 @@ class Game_window {
       await sleep(time/frames);
     }
   }
+  //is_in_bounds(x,y,size=this.tile_size){
+  //  return !((x < 0-size)                 || 
+  //           (x > this.canvas.width+size) ||
+  //           (y < 0-size)                 ||
+  //           (y > this.canvas.height+size));
+  //}
 }
 
 $(document).ready(function(){
