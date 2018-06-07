@@ -140,6 +140,7 @@ Board = function Board(width,height){
   this.houses = [];
   this.selected_tool = "road_toggle";
   this.window = new Game_window(this);
+  this.frame=0;
 }
 
 Board.prototype.remove_flan = function remove_flan(flan){
@@ -228,6 +229,21 @@ Board.prototype.update_step_display = function update_step_display(){
   $("#step_count").empty().append(`This day has gone on for ${this.number_of_steps} steps.`);
 }
 
+Board.prototype.next_frame = function next_frame(){
+  var fps = 100;
+  this.frame++
+  this.window.draw_visible(this.frame / fps);
+  if (this.frame >= fps){
+    this.frame = 0;
+    this.step();
+    this.update_step_display();
+    for(var i=0;i<this.width;i++){
+      for(var j=0;j<this.height;j++){
+        this.axes[i][j].render_update();
+      }
+    }
+  }
+}
 
 arrows = {
   "N":"↑",
@@ -789,7 +805,7 @@ class Game_window {
       x : this.skewed_position(new_x,new_y).x,
       y : this.skewed_position(new_x,new_y).y - (stack_separation * flan.stack_position())
     };
-    if (!flan.hopped_from || fraction === 1) {
+    if (!flan.hopped_from || fraction >= 1) {
       var current_coords = new_coords;  
     } else {
       var old_x = x;
@@ -928,7 +944,7 @@ class Game_window {
     this.do_everywhere_visible(this.draw_floor_at);
     this.do_everywhere_visible(this.draw_road_at);
     this.do_everywhere_visible(this.draw_house_at);
-    this.do_everywhere_visible(this.draw_flans_at,fraction);    
+    this.do_everywhere_visible(this.draw_flans_at,fraction*2);    
   }
 }
 
@@ -953,9 +969,11 @@ $(document).ready(function(){
 });
 
 setInterval(function(){
-  b.step();
-  b.render_update();
-  },500)
+//  b.step();
+//  b.render_update();
+//  },500)
+  b.next_frame();
+},5)
 
 $(document).ready(function(){
     $("#reset").click(function(){
