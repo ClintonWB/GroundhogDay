@@ -221,8 +221,9 @@ Board.prototype.update_step_display = function update_step_display(){
 }
 
 Board.prototype.next_frame = function next_frame(){
-  var frames_per_cycle = 100;
+  var frames_per_cycle = 120;
   this.frame++
+  this.window.shift_step();
   this.window.draw_visible(this.frame / frames_per_cycle);
   if (this.frame >= frames_per_cycle){
     this.frame = 0;
@@ -562,32 +563,80 @@ class Game_window {
                   y:20};
     this.canvas.addEventListener("click",this.my_click.bind(this));
     this.canvas.addEventListener("keydown",this.my_key_down.bind(this));
+    this.canvas.addEventListener("keyup",this.my_key_up.bind(this));
+    this.shift_speed = {x:0, y:0};
+    this.keys = {up:false, down:false, left:false, right:false};
   }
   my_key_down(event){
     var key = event.key;
-    var stepsize = 10;
+    var stepsize = 1.5;
     switch(key){
       case 'w':
       case 'W':
       case 'ArrowUp':
-        this.shift.y+=stepsize;
+        if(!this.keys.up){
+          this.keys.up = true;
+          this.shift_speed.y+=stepsize;
+        }
         break;
       case 'a':
       case 'A':
       case 'ArrowLeft':
-        this.shift.x+=stepsize;
+        if(!this.keys.left){
+          this.keys.left = true;
+          this.shift_speed.x+=stepsize;
+        }
         break;
       case 's':
       case 'S':
       case 'ArrowDown':
-        this.shift.y-=stepsize;
+        if(!this.keys.down){
+          this.keys.down = true;
+          this.shift_speed.y-=stepsize;
+        }
         break;
       case 'd':
       case 'D':
       case 'ArrowRight':
-        this.shift.x-=stepsize;
+        if(!this.keys.right){
+          this.keys.right = true;
+          this.shift_speed.x-=stepsize;
+        }
         break;
     }
+  }
+  my_key_up(event){
+    var key = event.key;
+    switch(key){
+      case 'w':
+      case 'W':
+      case 'ArrowUp':
+        this.keys.up = false;
+        this.shift_speed.y = 0;
+        break;
+      case 'a':
+      case 'A':
+      case 'ArrowLeft':
+        this.keys.left = false;
+        this.shift_speed.x = 0;
+        break;
+      case 's':
+      case 'S':
+      case 'ArrowDown':
+        this.keys.down = false;
+        this.shift_speed.y = 0;
+        break;
+      case 'd':
+      case 'D':
+      case 'ArrowRight':
+        this.keys.right = false;
+        this.shift_speed.x = 0;
+        break;
+    }
+  }
+  shift_step(){
+    this.shift.x += this.shift_speed.x;
+    this.shift.y += this.shift_speed.y;
   }
   my_click(event){
     var tile = this.tile_of(event.offsetX,event.offsetY);
@@ -821,11 +870,12 @@ $(document).ready(function(){
   h4 = new House(b,2,3,"N","4");
 
   b.render();
+  setInterval(function(){
+    b.next_frame();
+  },5)
 });
 
-setInterval(function(){
-  b.next_frame();
-},5)
+
 
 $(document).ready(function(){
     $("#reset").click(function(){
