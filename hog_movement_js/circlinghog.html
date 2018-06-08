@@ -648,26 +648,6 @@ class Game_window {
     ctx.scale(1,0.5);
     ctx.rotate(Math.PI/4);
   }
-  draw_floor(){
-    var ctx = this.context;
-    ctx.save();
-
-    var gradient = ctx.createRadialGradient(this.tile_size*0.5,this.tile_size*0.5,this.tile_size*0.1,
-                                            this.tile_size*0.5,this.tile_size*0.5,this.tile_size*0.8);
-    gradient.addColorStop(0,"#00cc00");
-    gradient.addColorStop(1,"white");
-    ctx.fillStyle = gradient;
-    
-    for (var j=0;j<this.board.height;j++){
-      for (var i=0;i<this.board.width;i++){
-        ctx.fillRect(0,0,this.tile_size,this.tile_size);
-        ctx.translate(this.tile_size,0);
-      };
-      ctx.translate(- this.board.width * this.tile_size, this.tile_size);
-    };
-
-    ctx.restore();
-  }
   move_context_to_skewed(x,y){// feed this grid coordinates, not canvas coordinates.
     this.skew_context();
     this.context.translate(0,(this.board.height-1) * this.tile_size);//get to (0,0)
@@ -710,6 +690,12 @@ class Game_window {
     obj.y += vertical_half*(x-y);
     return obj;
   }
+  skewed_position_x(x,y){
+    return (this.shift.x)+( (this.tile_size * Math.sqrt(0.5))*(x+y+1-this.board.height) );
+  }
+  skewed_position_y(x,y){
+    return (this.shift.y)+( (this.tile_size * Math.sqrt(0.5) * 0.5)*(x-y+this.board.height-1) );
+  }
   skewed_position_inverse(x,y){
     var horizontal_half = this.tile_size * Math.sqrt(0.5);
     var vertical_half = horizontal_half * 0.5;
@@ -736,13 +722,12 @@ class Game_window {
     var stack_separation = 10;
     var ctx = this.context;
     ctx.save();
-    var hogimg = document.getElementById("groundhog");
 
     var new_x = x;
     var new_y = y;
     var new_coords = {
-      x : this.skewed_position(new_x,new_y).x,
-      y : this.skewed_position(new_x,new_y).y - (stack_separation * flan.stack_position())
+      x : this.skewed_position_x(new_x,new_y),
+      y : this.skewed_position_y(new_x,new_y) - (stack_separation * flan.stack_position())
     };
     if (!flan.hopped_from || fraction >= 1) {
       var current_coords = new_coords;  
@@ -764,33 +749,28 @@ class Game_window {
           break;
       }
       var old_coords = {
-        x : this.skewed_position(old_x,old_y).x,
-        y : this.skewed_position(old_x,old_y).y - (stack_separation * flan.previous_stack_position) 
+        x : this.skewed_position_x(old_x,old_y),
+        y : this.skewed_position_y(old_x,old_y) - (stack_separation * flan.previous_stack_position) 
       };
       var current_coords = this.hop_path(old_coords,new_coords,fraction);
     }
 
     ctx.translate(current_coords.x,current_coords.y);
-    ctx.translate(0,17);
-    var rotation_angle = Math.PI*0.5;
     switch(flan.direction){
       case "N":
-        rotation_angle = 0;
+        var hogimg = document.getElementById("up_right_hog");
         break;
       case "E":
-        rotation_angle = Math.PI * 0.5;
+        var hogimg = document.getElementById("down_right_hog");
         break;
       case "S":
-        rotation_angle = Math.PI;
+        var hogimg = document.getElementById("down_left_hog");
         break;
       case "W":
-        rotation_angle = Math.PI * 1.5;
+        var hogimg = document.getElementById("up_left_hog");
         break;
-      default:
-        rotation_angle = -Math.PI *0.25; 
     }
-    ctx.rotate(rotation_angle);
-    ctx.drawImage(hogimg,-17,-17);
+    ctx.drawImage(hogimg,-20,-5,40,40);
     ctx.restore();    
   }
   draw_flans_at(x,y,fraction = 1){
@@ -922,6 +902,10 @@ $(document).ready(function(){
  
  <p hidden> resources:
  <img id="groundhog" src=resources/groundhog.png>
+ <img id="up_left_hog"    height="30" width = "30"  src=resources/groundhogs/up_left_hog.png>
+ <img id="up_right_hog"   height="30" width = "30"  src=resources/groundhogs/up_right_hog.png>
+ <img id="down_left_hog"  height="30" width = "30"  src=resources/groundhogs/down_left_hog.png>
+ <img id="down_right_hog" height="30" width = "30"  src=resources/groundhogs/down_right_hog.png>
  </p>
 
 </body>
