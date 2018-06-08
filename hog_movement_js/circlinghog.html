@@ -558,7 +558,7 @@ class Game_window {
     this.board=board;
     this.canvas = document.getElementById("myCanvas");
     this.context = this.canvas.getContext("2d");
-    this.tile_size = 50;
+    this.tile_size = 60;
     this.shift = {x:this.tile_size * this.board.height * Math.sqrt(0.5),
                   y:20};
     this.canvas.addEventListener("click",this.my_click.bind(this));
@@ -654,19 +654,11 @@ class Game_window {
     this.context.translate(x * this.tile_size, -y*this.tile_size);//get to the correct position
   }
   draw_floor_at(x,y){ // feed this grid coordinates, not canvas coordinates.
-    var ctx = this.context;
-    ctx.save();
-
-    var gradient = ctx.createRadialGradient(this.tile_size*0.5,this.tile_size*0.5,this.tile_size*0.1,
-                                            this.tile_size*0.5,this.tile_size*0.5,this.tile_size*0.8);
-    gradient.addColorStop(0,"#00cc00");
-    gradient.addColorStop(1,"white");
-    ctx.fillStyle = gradient;
-    
-    this.move_context_to_skewed(x,y);
-    ctx.fillRect(0,0,this.tile_size,this.tile_size);
-
-    ctx.restore();
+    this.context.drawImage(document.getElementById("grass"),
+                           this.skewed_position_x(x,y)-this.tile_size*Math.sqrt(0.5),
+                           this.skewed_position_y(x,y),
+                           this.tile_size*Math.sqrt(2),
+                           this.tile_size*Math.sqrt(0.5));
   }
   draw_road_at(x,y){
     var tile_x = mod(x,this.board.width);
@@ -770,7 +762,7 @@ class Game_window {
         var hogimg = document.getElementById("up_left_hog");
         break;
     }
-    ctx.drawImage(hogimg,-20,-5,40,40);
+    ctx.drawImage(hogimg,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
     ctx.restore();    
   }
   draw_flans_at(x,y,fraction = 1){
@@ -896,16 +888,16 @@ $(document).ready(function(){
  <div id="selected_tool">
  </div>
 
- <canvas id="myCanvas" width="400" height="300"
+ <canvas id="myCanvas" width="600" height="400"
    style="border:1px solid #000000;" tabindex='1'> 
  </canvas> 
  
  <p hidden> resources:
- <img id="groundhog" src=resources/groundhog.png>
- <img id="up_left_hog"    height="30" width = "30"  src=resources/groundhogs/up_left_hog.png>
- <img id="up_right_hog"   height="30" width = "30"  src=resources/groundhogs/up_right_hog.png>
- <img id="down_left_hog"  height="30" width = "30"  src=resources/groundhogs/down_left_hog.png>
- <img id="down_right_hog" height="30" width = "30"  src=resources/groundhogs/down_right_hog.png>
+ <img id="up_left_hog"    src=resources/groundhogs/up_left_hog.png>
+ <img id="up_right_hog"   src=resources/groundhogs/up_right_hog.png>
+ <img id="down_left_hog"  src=resources/groundhogs/down_left_hog.png>
+ <img id="down_right_hog" src=resources/groundhogs/down_right_hog.png>
+ <img id="grass" src=resources/grass.png>
  </p>
 
 </body>
