@@ -29,9 +29,9 @@ td{
 
 <script type="text/javascript">
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+//function sleep(ms) {
+//  return new Promise(resolve => setTimeout(resolve, ms));
+//}
 
 Tile = function Tile(board, x, y, floor){
   this.board = board;
@@ -221,7 +221,7 @@ Board.prototype.update_step_display = function update_step_display(){
 }
 
 Board.prototype.next_frame = function next_frame(){
-  var frames_per_cycle = 120;
+  var frames_per_cycle = 60;
   this.frame++
   this.window.shift_step();
   this.window.draw_visible(this.frame / frames_per_cycle);
@@ -569,7 +569,7 @@ class Game_window {
   }
   my_key_down(event){
     var key = event.key;
-    var stepsize = 1.5;
+    var stepsize = 3;
     switch(key){
       case 'w':
       case 'W':
@@ -872,7 +872,7 @@ $(document).ready(function(){
   b.render();
   setInterval(function(){
     b.next_frame();
-  },5)
+  },10)
 });
 
 
