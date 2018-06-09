@@ -29,10 +29,6 @@ td{
 
 <script type="text/javascript">
 
-//function sleep(ms) {
-//  return new Promise(resolve => setTimeout(resolve, ms));
-//}
-
 Tile = function Tile(board, x, y, floor){
   this.board = board;
   this.x = x;
@@ -427,9 +423,6 @@ Flan.prototype.step = function step(){
     this.is_waiting = true;
     next_flan.step(); //let the next flan get out of the way.
     this.is_waiting = false;
-    //if (this.has_stepped){
-    //  return;
-    //}
     if (this.following()){ //the flan we are following could not move, or another flan took its place. Stop.
       if (this.following.looped || this.following.stuck){
         this.stuck=true;
@@ -642,17 +635,6 @@ class Game_window {
     var tile = this.tile_of(event.offsetX,event.offsetY);
     tile.on_click();
   }
-  skew_context(){
-    var ctx = this.context;
-    ctx.translate(this.shift.x ,this.shift.y);
-    ctx.scale(1,0.5);
-    ctx.rotate(Math.PI/4);
-  }
-  move_context_to_skewed(x,y){// feed this grid coordinates, not canvas coordinates.
-    this.skew_context();
-    this.context.translate(0,(this.board.height-1) * this.tile_size);//get to (0,0)
-    this.context.translate(x * this.tile_size, -y*this.tile_size);//get to the correct position
-  }
   draw_floor_at(x,y){ // feed this grid coordinates, not canvas coordinates.
     this.context.drawImage(document.getElementById("grass"),
                            this.skewed_position_x(x,y)-this.tile_size*Math.sqrt(0.5),
@@ -664,24 +646,12 @@ class Game_window {
     var tile_x = mod(x,this.board.width);
     var tile_y = mod(y,this.board.height);
     if (this.board.axes[tile_x][tile_y].floor === '') return;
-    var ctx = this.context;
-    ctx.save();
-    
-    this.move_context_to_skewed(x,y);
-    ctx.fillStyle = "gray";
-    ctx.fillRect(0.1*this.tile_size,0.1*this.tile_size,0.8*this.tile_size,0.8*this.tile_size);
-
-    ctx.restore();
+    this.context.drawImage(document.getElementById("road"),
+                           this.skewed_position_x(x,y)-this.tile_size*Math.sqrt(0.5),
+                           this.skewed_position_y(x,y),
+                           this.tile_size*Math.sqrt(2),
+                           this.tile_size*Math.sqrt(0.5));
   }
-  //skewed_position(x,y){
-  //  var horizontal_half = this.tile_size * Math.sqrt(0.5);
-  //  var vertical_half = horizontal_half * 0.5; 
-  //  var obj = {x:this.shift.x+horizontal_half * (1-this.board.height),
-  //             y:this.shift.y+vertical_half * (this.board.height-1)};//this is (0,0)
-  //  obj.x += horizontal_half*(x+y);
-  //  obj.y += vertical_half*(x-y);
-  //  return obj;
-  //}
   skewed_position_x(x,y){
     return (this.shift.x)+( (this.tile_size * Math.sqrt(0.5))*(x+y+1-this.board.height) );
   }
@@ -778,21 +748,27 @@ class Game_window {
     var board_y = mod(y, this.board.height);
     var house = this.board.axes[board_x][board_y].houses[0];
     if (house === undefined) return;
-    var ctx = this.context;
-    ctx.save();
+    
+    switch(house.direction){
+      case "N":
+        var hole = document.getElementById("hole_up_right");
+        break;
+      case "E":
+        var hole = document.getElementById("hole_down_right");
+        break;
+      case "S":
+        var hole = document.getElementById("hole_down_left");
+        break;
+      case "W":
+        var hole = document.getElementById("hole_up_left");
+        break;
+    }
 
-    this.move_context_to_skewed(x,y);
-    ctx.beginPath();
-    ctx.arc(0.5*this.tile_size,0.5*this.tile_size,0.35*this.tile_size,0,2*Math.PI);
-    ctx.fillStyle="#663300";
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle="white";
-    ctx.font = "20px Times New Roman";
-    ctx.textAlign = "center";
-    ctx.fillText(arrows[house.direction],0.5*this.tile_size,0.5*this.tile_size);
-
-    ctx.restore();
+    this.context.drawImage(hole,
+                           this.skewed_position_x(x,y)-this.tile_size*Math.sqrt(0.5),
+                           this.skewed_position_y(x,y),
+                           this.tile_size*Math.sqrt(2),
+                           this.tile_size*Math.sqrt(0.5));
   }
   hop_path(start,end,fraction){//feed this objects with x and y
     var jumpheight = 30;
@@ -900,6 +876,11 @@ $(document).ready(function(){
  <img id="down_left_hog"  src=resources/groundhogs/down_left_hog.png>
  <img id="down_right_hog" src=resources/groundhogs/down_right_hog.png>
  <img id="grass" src=resources/grass.png>
+ <img id="road" src=resources/road.png>
+ <img id="hole_up_left"    src=resources/holes/hole_up_left.png>
+ <img id="hole_up_right"   src=resources/holes/hole_up_right.png>
+ <img id="hole_down_left"  src=resources/holes/hole_down_left.png>
+ <img id="hole_down_right" src=resources/holes/hole_down_right.png>
  </p>
 
 </body>
