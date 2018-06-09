@@ -673,15 +673,15 @@ class Game_window {
 
     ctx.restore();
   }
-  skewed_position(x,y){
-    var horizontal_half = this.tile_size * Math.sqrt(0.5);
-    var vertical_half = horizontal_half * 0.5; 
-    var obj = {x:this.shift.x+horizontal_half * (1-this.board.height),
-               y:this.shift.y+vertical_half * (this.board.height-1)};//this is (0,0)
-    obj.x += horizontal_half*(x+y);
-    obj.y += vertical_half*(x-y);
-    return obj;
-  }
+  //skewed_position(x,y){
+  //  var horizontal_half = this.tile_size * Math.sqrt(0.5);
+  //  var vertical_half = horizontal_half * 0.5; 
+  //  var obj = {x:this.shift.x+horizontal_half * (1-this.board.height),
+  //             y:this.shift.y+vertical_half * (this.board.height-1)};//this is (0,0)
+  //  obj.x += horizontal_half*(x+y);
+  //  obj.y += vertical_half*(x-y);
+  //  return obj;
+  //}
   skewed_position_x(x,y){
     return (this.shift.x)+( (this.tile_size * Math.sqrt(0.5))*(x+y+1-this.board.height) );
   }
@@ -810,8 +810,10 @@ class Game_window {
     var num_rows = 2 + Math.floor( this.canvas.height / (this.tile_size * Math.sqrt(0.5)) );
     for(var row = 0; row<num_rows; row++){
       for(var column = -1; column<row_length; column++){
-        myfun.call(this,first_coords.x+row+column,first_coords.y-row+column  ,fraction);
         myfun.call(this,first_coords.x+row+column,first_coords.y-row+column+1,fraction);
+      }
+      for(var column = -1; column<row_length; column++){
+        myfun.call(this,first_coords.x+row+column,first_coords.y-row+column  ,fraction);
       }
     }
   }
