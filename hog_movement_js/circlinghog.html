@@ -124,7 +124,7 @@ Tile.prototype.render_update = function render_update(){
 Board = function Board(width,height){
   this.width = width;
   this.height = height;
-  this.axes = [...Array(height)].map(e => Array(width).fill(''));
+  this.axes = [...Array(width)].map(e => Array(height).fill(''));
   for(var i=0;i<width;i++){
     for(var j=0;j<height;j++){
       this.axes[i][j]= new Tile(this,i,j,'');
@@ -804,7 +804,7 @@ class Game_window {
 
 $(document).ready(function(){
 
-  b = new Board(5,6);
+  b = new Board(7,6);
 
   b.axes[1][4].floor="r";
   b.axes[2][1].floor="r";
