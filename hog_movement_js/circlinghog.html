@@ -364,7 +364,7 @@ Flan.prototype.going_to_t = function going_to_t(){
   var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
   temp_flan.move();
   if (temp_flan.tile() === this.tile()){
-    temp_flan.deconstruct;
+    temp_flan.deconstruct();
     return false;
   }
   var temp_flan_neighbors = temp_flan.neighbor_tiles();
