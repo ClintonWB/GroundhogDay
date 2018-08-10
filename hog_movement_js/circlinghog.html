@@ -29,156 +29,213 @@ td{
 
 <script type="text/javascript">
 
-Tile = function Tile(board, x, y, floor){
-  this.board = board;
-  this.x = x;
-  this.y = y;
-  this.floor = floor;
-  this.flans = [];
-  this.houses = [];
-}
-Tile.prototype.appearance = function appearance(){
-  var s=$("<span>");
-  for (let house of this.houses){
-    s.append(house.appearance());
-  };
-  for (let flan of this.flans){
-    s.append(flan.appearance());
-  };
-  return s;
-}
-Tile.prototype.remove_flan = function remove_flan(flan){
-  var index = this.flans.indexOf(flan);
-  if (index > -1) {
-    this.flans.splice(index,1);
-  };
-}
-Tile.prototype.remove_house = function remove_house(house){
-  var index = this.houses.indexOf(house);
-  if (index > -1) {
-    this.houses.splice(index,1);
-  };
-}
-Tile.prototype.flan_pointing = function flan_pointing(direction){
-  for (let flan of this.flans){
-    if (flan.direction === direction){
-      return flan;
+class Tile{
+  constructor(board, x, y, floor){
+    this.board = board;
+    this.x = x;
+    this.y = y;
+    this.floor = floor;
+    this.flans = [];
+    this.houses = [];
+  }
+  appearance(){
+    var s=$("<span>");
+    for (let house of this.houses){
+      s.append(house.appearance());
     };
-  };
-  return false;
-}
-Tile.prototype.flan_going = function flan_going(direction){
-  for (let flan of this.flans){
-    if (flan.going() === direction){
-      return flan;
+    for (let flan of this.flans){
+      s.append(flan.appearance());
     };
-  };
-  return false;
-}
-Tile.prototype.road_toggle = function road_toggle(){
-  if(this.floor === ''){
-    this.floor = 'r';
-  } else {
-    this.floor ='';
+    return s;
   }
-}
-Tile.prototype.house_toggle = function house_toggle(){
-  if(this.houses.length > 0){
-    this.houses[0].deconstruct();
-  } else {
-    new House(this.board,this.x,this.y,"N");
+  remove_flan(flan){
+    var index = this.flans.indexOf(flan);
+    if (index > -1) {
+      this.flans.splice(index,1);
+    };
   }
-}
-Tile.prototype.on_click = function on_click(){
-  switch (this.board.selected_tool){
-    case "rotate_house":
-      if(this.houses.length>0)this.houses[0].rotate();
-      break;
-    case "road_toggle":
-      this.road_toggle();
-      break;
-    case "house_toggle":
-      this.house_toggle();
-      break;
-    default:
-      throw "no such tool as "+this.board.selected_tool;
-      break;      
+  remove_house(house){
+    var index = this.houses.indexOf(house);
+    if (index > -1) {
+      this.houses.splice(index,1);
+    };
   }
-  this.board.is_changed = true;
-  this.render_update();
-}
-Tile.prototype.id = function id(){
-  return 'tile_'+this.x+'_'+this.y;
-}
-Tile.prototype.render_update = function render_update(){
-  var td = $('#'+this.id());
-  td.empty();
-  td.append(this.appearance());
-  if (this.floor === 'r'){
-    td.addClass('road');
-  } else {
-    td.removeClass('road');
+  flan_pointing(direction){
+    for (let flan of this.flans){
+      if (flan.direction === direction){
+        return flan;
+      };
+    };
+    return false;
   }
-}
-
-Board = function Board(width,height){
-  this.width = width;
-  this.height = height;
-  this.axes = [...Array(width)].map(e => Array(height).fill(''));
-  for(var i=0;i<width;i++){
-    for(var j=0;j<height;j++){
-      this.axes[i][j]= new Tile(this,i,j,'');
+  flan_going(direction){
+    for (let flan of this.flans){
+      if (flan.going() === direction){
+        return flan;
+      };
+    };
+    return false;
+  }
+  road_toggle(){
+    if(this.floor === ''){
+      this.floor = 'r';
+    } else {
+      this.floor ='';
     }
   }
-  this.flans = [];
-  this.is_changed = false;
-  this.number_of_steps = 0;
-  this.houses = [];
-  this.selected_tool = "road_toggle";
-  this.window = new Game_window(this);
-  this.frame=0;
+  house_toggle(){
+    if(this.houses.length > 0){
+      this.houses[0].deconstruct();
+    } else {
+      new House(this.board,this.x,this.y,"N");
+    }
+  }
+  on_click(){
+    switch (this.board.selected_tool){
+      case "rotate_house":
+        if(this.houses.length>0)this.houses[0].rotate();
+        break;
+      case "road_toggle":
+        this.road_toggle();
+        break;
+      case "house_toggle":
+        this.house_toggle();
+        break;
+      default:
+        throw "no such tool as "+this.board.selected_tool;
+        break;      
+    }
+    this.board.is_changed = true;
+    this.render_update();
+  }
+  id(){
+    return 'tile_'+this.x+'_'+this.y;
+  }
+  render_update(){
+    var td = $('#'+this.id());
+    td.empty();
+    td.append(this.appearance());
+    if (this.floor === 'r'){
+      td.addClass('road');
+    } else {
+      td.removeClass('road');
+    }
+  }
 }
 
-Board.prototype.remove_flan = function remove_flan(flan){
-  var index = this.flans.indexOf(flan);
-  if (index > -1) {
-    this.flans.splice(index,1);
-  };
-}
-Board.prototype.remove_house = function remove_house(house){
-  var index = this.houses.indexOf(house);
-  if (index > -1) {
-    this.houses.splice(index,1);
-  };
-}
-Board.prototype.step = function step(){
-  for (let flan of this.flans){
-    flan.has_stepped = false;
-    flan.hopped_from = false;
-    flan.previous_stack_position = flan.stack_position();
-  };
-  if (this.is_changed){
-    for (let flan of this.flans){
-      flan.looped = false;
-      flan.stuck = false;
-    };
+class Board{
+  constructor(width,height){
+    this.width = width;
+    this.height = height;
+    this.axes = [...Array(width)].map(e => Array(height).fill(''));
+    for(var i=0;i<width;i++){
+      for(var j=0;j<height;j++){
+        this.axes[i][j]= new Tile(this,i,j,'');
+      }
+    }
+    this.flans = [];
     this.is_changed = false;
-  };
-  for (let flan of this.flans){
-    flan.step();
-  };
-  this.number_of_steps ++;
-}
-Board.prototype.recall_flan = function recall_flan(){
-  for (let house of this.houses){
-    house.recall_flan();
-  };
-}
-Board.prototype.reset_day = function reset_day(){
-  this.number_of_steps = 0;
-  this.recall_flan();
-}
+    this.number_of_steps = 0;
+    this.houses = [];
+    this.selected_tool = "road_toggle";
+    this.window = new Game_window(this);
+    this.frame=0;
+  }
+  remove_flan(flan){
+    var index = this.flans.indexOf(flan);
+    if (index > -1) {
+      this.flans.splice(index,1);
+    };
+  }
+  remove_house(house){
+    var index = this.houses.indexOf(house);
+    if (index > -1) {
+      this.houses.splice(index,1);
+    };
+  }
+  step(){
+    for (let flan of this.flans){
+      flan.has_stepped = false;
+      flan.hopped_from = false;
+      flan.previous_stack_position = flan.stack_position();
+    };
+    if (this.is_changed){
+      for (let flan of this.flans){
+        flan.looped = false;
+        flan.stuck = false;
+      };
+      this.is_changed = false;
+    };
+    for (let flan of this.flans){
+      flan.step();
+    };
+    this.number_of_steps ++;
+  }
+  recall_flan(){
+    for (let house of this.houses){
+      house.recall_flan();
+    };
+  }
+  reset_day(){
+    this.number_of_steps = 0;
+    this.recall_flan();
+  }
+  
+  render(){
+    var board_container = $("#board_container")
+    var board_table = $("<table>")
+    for (var j=this.height-1;j>=0;j--){
+      var tr = $("<tr>")
+      for (var i=0;i<this.width;i++){
+        var td = $("<td>");
+        var tile = this.axes[i][j];
+        td.attr("id",tile.id());
+        if (tile.floor === "r") {
+          td.addClass("road")
+        }
+        td.append(tile.appearance());
 
+        let clickhandlerfactory = function(i,j,board){
+          return function(){
+            board.axes[i][j].on_click();
+          }
+        }
+        td.bind("click",clickhandlerfactory(i,j,this))
+        tr.append(td)
+      }
+      board_table.append(tr)
+    }
+    board_container.empty()
+    board_container.append(board_table)
+    this.update_tool_display();
+    this.update_step_display();
+    this.window.draw_visible();
+  }
+  
+  update_tool_display(){
+    $("#selected_tool").empty().append(`The current tool is ${this.selected_tool}.`);
+  }
+  update_step_display(){
+    $("#step_count").empty().append(`This day has gone on for ${this.number_of_steps} steps.`);
+  }
+  next_frame(){
+    var frames_per_cycle = 60;
+    this.frame++
+    this.window.shift_step();
+    this.window.draw_visible(this.frame / frames_per_cycle);
+    if (this.frame >= frames_per_cycle){
+      this.frame = 0;
+      this.step();
+      this.update_step_display();
+      for(var i=0;i<this.width;i++){
+        for(var j=0;j<this.height;j++){
+          this.axes[i][j].render_update();
+        }
+      }
+    }
+  }
+}
+/*
 Board.prototype.render = function render(){
   var board_container = $("#board_container")
   var board_table = $("<table>")
@@ -209,30 +266,7 @@ Board.prototype.render = function render(){
   this.update_step_display();
   this.window.draw_visible();
 }
-Board.prototype.update_tool_display = function update_tool_display(){
-  $("#selected_tool").empty().append(`The current tool is ${this.selected_tool}.`);
-}
-Board.prototype.update_step_display = function update_step_display(){
-  $("#step_count").empty().append(`This day has gone on for ${this.number_of_steps} steps.`);
-}
-
-Board.prototype.next_frame = function next_frame(){
-  var frames_per_cycle = 60;
-  this.frame++
-  this.window.shift_step();
-  this.window.draw_visible(this.frame / frames_per_cycle);
-  if (this.frame >= frames_per_cycle){
-    this.frame = 0;
-    this.step();
-    this.update_step_display();
-    for(var i=0;i<this.width;i++){
-      for(var j=0;j<this.height;j++){
-        this.axes[i][j].render_update();
-      }
-    }
-  }
-}
-
+*/
 arrows = {
   "N":"↑",
   "E":"→",
@@ -240,217 +274,256 @@ arrows = {
   "S":"↓"
 }
 
-Flan = function Flan(board,x,y,direction){
-  //variables
-  this.x = x;
-  this.y = y;
-  this.direction = direction;
-  this.board = board;
-  this.has_stepped = false;
-  this.is_waiting = false;
-  this.looped = false;
-  this.stuck = false;
-  this.decorator = '';
-  this.hopped_from = false;
-  this.previous_stack_position = 0;
-  //change other variables upon creation
-  board.flans.push(this);
-  board.axes[x][y].flans.push(this);
-}
-
-Flan.prototype.stack_position = function stack_position(){
-  return this.tile().flans.indexOf(this);
-}
-
-Flan.prototype.tile = function tile(){
+class Flan{
+  constructor(board,x,y,direction){
+    //variables
+    this.x = x;
+    this.y = y;
+    this.direction = direction;
+    this.board = board;
+    this.has_stepped = false;
+    this.is_waiting = false;
+    this.looped = false;
+    this.stuck = false;
+    this.decorator = '';
+    this.hopped_from = false;
+    this.previous_stack_position = 0;
+    //change other variables upon creation
+    board.flans.push(this);
+    board.axes[x][y].flans.push(this);
+  }
+  stack_position(){
+    return this.tile().flans.indexOf(this);
+  }
+  tile(){
     return this.board.axes[this.x][this.y];
-}
-
-Flan.prototype.deconstruct = function deconstruct(){
-  this.tile().remove_flan(this);
-  this.board.remove_flan(this);
-}
-Flan.prototype.appearance = function appearance(){
-  var s = $("<span>");
-  s.addClass("flan");
-  if(this.looped){
-    s.addClass("looped");
   }
-  if(this.stuck){
-    s.addClass("stuck");
+  deconstruct(){
+    this.tile().remove_flan(this);
+    this.board.remove_flan(this);
   }
-  s.text(arrows[this.direction]+this.decorator);
-  return s;
-};
-Flan.prototype.move = function move(move_direction = this.going()){
-  if (move_direction === '') return;
-  this.hopped_from = this.tile();
-  this.tile().remove_flan(this);
-  switch(move_direction){
-    case "N":
-      this.y += 1;
-      break;
-    case "E":
-      this.x += 1;
-      break;
-    case "W":
-      this.x -= 1;
-      break;
-    case "S":
-      this.y -= 1;
-  }
-  this.x = mod(this.x,this.board.width);
-  this.y = mod(this.y,this.board.height);
-  this.direction = move_direction;
-  this.tile().flans.push(this);
-};
-Flan.prototype.move_to = function move_to(x = this.x,y=this.y,direction = this.direction){
-  this.tile().remove_flan(this);
-  this.x = mod(x,this.board.width);
-  this.y = mod(y,this.board.height);
-  this.direction = direction;
-  this.tile().flans.push(this);
-}
-Flan.prototype.neighbor_tiles = function neighbor_tiles(){
-  left_coords = this.local2absolute(-1,0);
-  right_coords = this.local2absolute(1,0);
-  front_coords = this.local2absolute(0,1);
-  back_coords = this.local2absolute(0,-1);
-  var obj = {
-    left: this.board.axes[left_coords.x][left_coords.y],
-    right: this.board.axes[right_coords.x][right_coords.y],
-    front: this.board.axes[front_coords.x][front_coords.y],
-    back: this.board.axes[back_coords.x][back_coords.y]
-  };
-  return obj;
-  }
-Flan.prototype.right = function right(){
-return {"N":"E",
-        "E":"S",
-        "S":"W",
-        "W":"N"}[this.direction]
-}
-Flan.prototype.left = function left(){
-return {"N":"W",
-        "W":"S",
-        "S":"E",
-        "E":"N"}[this.direction]
-}
-Flan.prototype.back = function back(){
-  return {"N":"S",
-          "S":"N",
-          "W":"E",
-          "E":"W"}[this.direction]
-}
-Flan.prototype.going = function going(){
-  if (this.neighbor_tiles().front.floor === 'r'){
-    return this.direction;
-  } else if (this.neighbor_tiles().right.floor === 'r'){
-    return this.right();
-  } else if (this.neighbor_tiles().left.floor === 'r'){
-    return this.left();
-  }
-  return '';
-}
-Flan.prototype.following = function following(){
-  var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
-  temp_flan.move();
-  var test_tile = temp_flan.tile();
-  var test_direction = temp_flan.going();
-  temp_flan.deconstruct();
-  return test_tile.flan_going(test_direction);
-}
-Flan.prototype.going_to_t = function going_to_t(){
-  var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
-  temp_flan.move();
-  if (temp_flan.tile() === this.tile()){
-    temp_flan.deconstruct();
-    return false;
-  }
-  var temp_flan_neighbors = temp_flan.neighbor_tiles();
-  var condition = (temp_flan_neighbors.front.floor === '' &&
-               temp_flan_neighbors.right.floor === 'r'&&
-               temp_flan_neighbors.left.floor === 'r');
-  temp_flan.deconstruct();
-  return condition;
-}
-Flan.prototype.flan_competing_for_t = function flan_competing_for_t(){
-  if (! this.going_to_t()) return false;
-  var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
-  temp_flan.move();
-  var ret_val = temp_flan.neighbor_tiles().left.flan_going(temp_flan.right());
-  temp_flan.deconstruct();
-  if (ret_val.has_stepped){
-    return false;
-  }
-  return ret_val;
-}
-Flan.prototype.step = function step(){
-  if (this.has_stepped || this.stuck){return};
-  next_flan = this.following();
-  if (next_flan === this){
-    this.stuck = true;
-    this.has_stepped = true;
-    return;
-  }
-  if (this.looped){
-    this.has_stepped = true;
-    this.move();
-    if (next_flan){
-      next_flan.step();
+  appearance(){
+    var s = $("<span>");
+    s.addClass("flan");
+    if(this.looped){
+      s.addClass("looped");
     }
-    return;
+    if(this.stuck){
+      s.addClass("stuck");
+    }
+    s.text(arrows[this.direction]+this.decorator);
+    return s;
+  };
+  move(move_direction = this.going()){
+    if (move_direction === '') return;
+    this.hopped_from = this.tile();
+    this.tile().remove_flan(this);
+    switch(move_direction){
+      case "N":
+        this.y += 1;
+        break;
+      case "E":
+        this.x += 1;
+        break;
+      case "W":
+        this.x -= 1;
+        break;
+      case "S":
+        this.y -= 1;
+    }
+    this.x = mod(this.x,this.board.width);
+    this.y = mod(this.y,this.board.height);
+    this.direction = move_direction;
+    this.tile().flans.push(this);
+  };
+  move_to(x = this.x,y=this.y,direction = this.direction){
+    this.tile().remove_flan(this);
+    this.x = mod(x,this.board.width);
+    this.y = mod(y,this.board.height);
+    this.direction = direction;
+    this.tile().flans.push(this);
   }
-  if (next_flan){
-    if (next_flan.looped || next_flan.stuck){
+  neighbor_tiles(){
+    let left_coords = this.local2absolute(-1,0);
+    let right_coords = this.local2absolute(1,0);
+    let front_coords = this.local2absolute(0,1);
+    let back_coords = this.local2absolute(0,-1);
+    var obj = {
+      left: this.board.axes[left_coords.x][left_coords.y],
+      right: this.board.axes[right_coords.x][right_coords.y],
+      front: this.board.axes[front_coords.x][front_coords.y],
+      back: this.board.axes[back_coords.x][back_coords.y]
+    };
+    return obj;
+  }
+  right(){
+    return {"N":"E",
+            "E":"S",
+            "S":"W",
+            "W":"N"}[this.direction]
+  }
+  left(){
+    return {"N":"W",
+            "W":"S",
+            "S":"E",
+            "E":"N"}[this.direction]
+  }
+  back(){
+    return {"N":"S",
+            "S":"N",
+            "W":"E",
+            "E":"W"}[this.direction]
+  }
+  going(){
+    if (this.neighbor_tiles().front.floor === 'r'){
+      return this.direction;
+    } else if (this.neighbor_tiles().right.floor === 'r'){
+      return this.right();
+    } else if (this.neighbor_tiles().left.floor === 'r'){
+      return this.left();
+    }
+    return '';
+  }
+  following(){
+    var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
+    temp_flan.move();
+    var test_tile = temp_flan.tile();
+    var test_direction = temp_flan.going();
+    temp_flan.deconstruct();
+    return test_tile.flan_going(test_direction);
+  }
+  going_to_t(){
+    var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
+    temp_flan.move();
+    if (temp_flan.tile() === this.tile()){
+      temp_flan.deconstruct();
+      return false;
+    }
+    var temp_flan_neighbors = temp_flan.neighbor_tiles();
+    var condition = (temp_flan_neighbors.front.floor === '' &&
+                 temp_flan_neighbors.right.floor === 'r'&&
+                 temp_flan_neighbors.left.floor === 'r');
+    temp_flan.deconstruct();
+    return condition;
+  }
+  flan_competing_for_t(){
+    if (! this.going_to_t()) return false;
+    var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
+    temp_flan.move();
+    var ret_val = temp_flan.neighbor_tiles().left.flan_going(temp_flan.right());
+    temp_flan.deconstruct();
+    if (ret_val.has_stepped){
+      return false;
+    }
+    return ret_val;
+  }
+  step(){
+    if (this.has_stepped || this.stuck){return};
+    let next_flan = this.following();
+    if (next_flan === this){
       this.stuck = true;
       this.has_stepped = true;
       return;
     }
-    if (next_flan.is_waiting){ // We found a new loop. Inform the others, then advance the whole loop.
-      this.looped = true;
-      f = next_flan;
-      while (f !== this){
-        f.looped = true;
-        f = f.following();
+    if (this.looped){
+      this.has_stepped = true;
+      this.move();
+      if (next_flan){
+        next_flan.step();
       }
-      //next_flan.looped = true;
+      return;
+    }
+    if (next_flan){
+      if (next_flan.looped || next_flan.stuck){
+        this.stuck = true;
+        this.has_stepped = true;
+        return;
+      }
+      if (next_flan.is_waiting){ // We found a new loop. Inform the others, then advance the whole loop.
+        this.looped = true;
+        let f = next_flan;
+        while (f !== this){
+          f.looped = true;
+          f = f.following();
+        }
+        //next_flan.looped = true;
+        this.move();
+        this.has_stepped = true;
+        next_flan.step();
+        return;
+      }
+      this.is_waiting = true;
+      next_flan.step(); //let the next flan get out of the way.
+      this.is_waiting = false;
+      if (this.following()){ //the flan we are following could not move, or another flan took its place. Stop.
+        if (this.following.looped || this.following.stuck){
+          this.stuck=true;
+        }
+        this.has_stepped = true;
+        return;
+      }
+      if (this.flan_competing_for_t()){ //let another flan into the procession. Stop.
+        this.flan_competing_for_t().step();
+        this.has_stepped = true;
+        return;
+      }
+      // we can fill the space we were following. Move and stop.
       this.move();
       this.has_stepped = true;
-      next_flan.step();
       return;
     }
-    this.is_waiting = true;
-    next_flan.step(); //let the next flan get out of the way.
-    this.is_waiting = false;
-    if (this.following()){ //the flan we are following could not move, or another flan took its place. Stop.
-      if (this.following.looped || this.following.stuck){
-        this.stuck=true;
-      }
-      this.has_stepped = true;
-      return;
-    }
+    //we are not following anyone, i.e. our target space is open.
     if (this.flan_competing_for_t()){ //let another flan into the procession. Stop.
-      this.flan_competing_for_t().step();
-      this.has_stepped = true;
-      return;
+        this.flan_competing_for_t().step();
+        this.has_stepped = true;
+        return;
     }
-    // we can fill the space we were following. Move and stop.
+    //we have priority for entering our target. Move and stop.
     this.move();
     this.has_stepped = true;
     return;
   }
-  //we are not following anyone, i.e. our target space is open.
-  if (this.flan_competing_for_t()){ //let another flan into the procession. Stop.
-      this.flan_competing_for_t().step();
-      this.has_stepped = true;
-      return;
+  //This function gives the absolute coordinates of a 
+  //space that is "right" spaces to the right and "ahead" spaces
+  //ahead from the flan.
+  local2absolute(right,ahead){
+    var turns = {"N":0,
+             "E":1,
+             "S":2,
+             "W":3}[this.direction];
+    var shift = rotate(right,ahead,turns);
+    var x = this.x + shift.x;
+    var y = this.y + shift.y;
+    x=mod(x,this.board.width);
+    y=mod(y,this.board.height);
+    var obj ={
+      x:x,
+      y:y
+    };
+    return obj;
   }
-  //we have priority for entering our target. Move and stop.
-  this.move();
-  this.has_stepped = true;
-  return;
+  //This function gives the local coordinates of a point (x,y)
+  //in terms of the number of spaces "right" and "ahead" of the flan
+  absolute2local(x,y){
+    x=mod(x,this.board.width);
+    y=mod(y,this.board.height);
+    var shift={
+      x: x-this.x,
+      y: y-this.y
+    };
+    var turns = {"N":0,
+             "E":1,
+             "S":2,
+             "W":3}[this.direction];
+    var locals = rotate(shift.x,shift.y,-turns);
+    var obj ={
+      right:locals.x,
+      ahead:locals.y
+    };
+    return obj;
+  }
 }
+
 
 function mod(m,n){
   return (m%n + n)%n;
@@ -467,47 +540,6 @@ function rotate(x,y,n){
   var obj = {
     x:x,
     y:y
-  };
-  return obj;
-}
-
-//This function gives the absolute coordinates of a 
-//space that is "right" spaces to the right and "ahead" spaces
-//ahead from the flan.
-Flan.prototype.local2absolute = function local2absolute(right,ahead){
-  var turns = {"N":0,
-           "E":1,
-           "S":2,
-           "W":3}[this.direction];
-  var shift = rotate(right,ahead,turns);
-  var x = this.x + shift.x;
-  var y = this.y + shift.y;
-  x=mod(x,this.board.width);
-  y=mod(y,this.board.height);
-  var obj ={
-    x:x,
-    y:y
-  };
-  return obj;
-}
-
-//This function gives the local coordinates of a point (x,y)
-//in terms of the number of spaces "right" and "ahead" of the flan
-Flan.prototype.absolute2local = function absolute2local(x,y){
-  x=mod(x,this.board.width);
-  y=mod(y,this.board.height);
-  var shift={
-    x: x-this.x,
-    y: y-this.y
-  };
-  var turns = {"N":0,
-           "E":1,
-           "S":2,
-           "W":3}[this.direction];
-  var locals = rotate(shift.x,shift.y,-turns);
-  var obj ={
-    right:locals.x,
-    ahead:locals.y
   };
   return obj;
 }
