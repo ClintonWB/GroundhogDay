@@ -29,6 +29,10 @@ td{
 
 <script type="text/javascript">
 
+function mod(m,n){
+  return (m%n + n)%n;
+}
+
 class Tile{
   constructor(board, x, y, floor){
     this.board = board;
@@ -37,9 +41,13 @@ class Tile{
     this.floor = floor;
     this.flans = [];
     this.houses = [];
+    this.interactable = false;
   }
   appearance(){
     var s=$("<span>");
+    if (this.interactable){
+      s.append(this.interactable.appearance());
+    }
     for (let house of this.houses){
       s.append(house.appearance());
     };
@@ -90,6 +98,27 @@ class Tile{
       new House(this.board,this.x,this.y,"N");
     }
   }
+  tree_toggle(){
+    if(this.interactable instanceof Tree){
+      this.interactable.deconstruct();
+    } else {
+      this.interactable = new Tree(this);
+    }
+  }
+  castle_toggle(){
+    if(this.interactable instanceof Castle){
+      this.interactable.deconstruct();
+    } else {
+      this.interactable = new Castle(this);
+    }
+  }
+  berry_bush_toggle(){
+    if(this.interactable instanceof Berry_Bush){
+      this.interactable.deconstruct();
+    } else {
+      this.interactable = new Berry_Bush(this);
+    }
+  }
   on_click(){
     switch (this.board.selected_tool){
       case "rotate_house":
@@ -100,6 +129,15 @@ class Tile{
         break;
       case "house_toggle":
         this.house_toggle();
+        break;
+      case "tree_toggle":
+        this.tree_toggle();
+        break;
+      case "castle_toggle":
+        this.castle_toggle();
+        break;
+      case "berry_bush_toggle":
+        this.berry_bush_toggle();
         break;
       default:
         throw "no such tool as "+this.board.selected_tool;
@@ -120,6 +158,30 @@ class Tile{
     } else {
       td.removeClass('road');
     }
+  }
+  north(){
+    let x = this.x;
+    let y = this.y;
+    y = mod(y+1, this.board.height);
+    return this.board.axes[x][y];
+  }
+  south(){
+    let x = this.x;
+    let y = this.y;
+    y = mod(y-1, this.board.height);
+    return this.board.axes[x][y];
+  }
+  east(){
+    let x = this.x;
+    let y = this.y;
+    x = mod(x+1, this.board.height);
+    return this.board.axes[x][y];
+  }
+  west(){
+    let x = this.x;
+    let y = this.y;
+    x = mod(x-1, this.board.height);
+    return this.board.axes[x][y];
   }
 }
 
@@ -169,6 +231,8 @@ class Board{
     for (let flan of this.flans){
       flan.step();
     };
+    let matchmaker = new Matchmaker(this)
+    matchmaker.match();
     this.number_of_steps ++;
   }
   recall_flan(){
@@ -176,11 +240,20 @@ class Board{
       house.recall_flan();
     };
   }
+  replenish_givers(){
+    for(var i=0;i<this.width;i++){
+      for(var j=0;j<this.height;j++){
+        if(this.axes[i][j].interactable instanceof Giver){
+          this.axes[i][j].interactable.replenish();
+        }        
+      }
+    }
+  }
   reset_day(){
     this.number_of_steps = 0;
     this.recall_flan();
+    this.replenish_givers();
   }
-  
   render(){
     var board_container = $("#board_container")
     var board_table = $("<table>")
@@ -211,7 +284,6 @@ class Board{
     this.update_step_display();
     this.window.draw_visible();
   }
-  
   update_tool_display(){
     $("#selected_tool").empty().append(`The current tool is ${this.selected_tool}.`);
   }
@@ -235,38 +307,6 @@ class Board{
     }
   }
 }
-/*
-Board.prototype.render = function render(){
-  var board_container = $("#board_container")
-  var board_table = $("<table>")
-  for (var j=this.height-1;j>=0;j--){
-    var tr = $("<tr>")
-    for (var i=0;i<this.width;i++){
-      var td = $("<td>");
-      var tile = this.axes[i][j];
-      td.attr("id",tile.id());
-      if (tile.floor === "r") {
-        td.addClass("road")
-      }
-      td.append(tile.appearance());
-
-      clickhandlerfactory = function(i,j,board){
-        return function(){
-          board.axes[i][j].on_click();
-        }
-      }
-      td.bind("click",clickhandlerfactory(i,j,this))
-      tr.append(td)
-    }
-    board_table.append(tr)
-  }
-  board_container.empty()
-  board_container.append(board_table)
-  this.update_tool_display();
-  this.update_step_display();
-  this.window.draw_visible();
-}
-*/
 arrows = {
   "N":"↑",
   "E":"→",
@@ -288,9 +328,19 @@ class Flan{
     this.decorator = '';
     this.hopped_from = false;
     this.previous_stack_position = 0;
+    this.interact_preferences = [];
+    this.holding = false;
     //change other variables upon creation
     board.flans.push(this);
     board.axes[x][y].flans.push(this);
+  }
+  reset_interact_preferences(){
+    let neighbors = this.neighbor_tiles();
+    this.interact_preferences = [
+      neighbors.front.interactable,
+      neighbors.right.interactable,
+      neighbors.left.interactable
+    ]
   }
   stack_position(){
     return this.tile().flans.indexOf(this);
@@ -311,7 +361,9 @@ class Flan{
     if(this.stuck){
       s.addClass("stuck");
     }
-    s.text(arrows[this.direction]+this.decorator);
+    let string=arrows[this.direction]+this.decorator;
+    if (this.holding) string += this.holding;
+    s.text(string);
     return s;
   };
   move(move_direction = this.going()){
@@ -524,11 +576,6 @@ class Flan{
   }
 }
 
-
-function mod(m,n){
-  return (m%n + n)%n;
-}
-
 //This function rotates a vector (x,y) "n" steps clockwise.
 function rotate(x,y,n){
   n = mod(n,4);
@@ -543,6 +590,212 @@ function rotate(x,y,n){
   };
   return obj;
 }
+
+class Interaction_Queue{
+  constructor(board){
+    this.board = board;
+    this.pairs = [];
+  }
+  flans_of(interactable){
+    let pair_list = this.pairs.filter(pair => pair[1] === interactable);
+    let list = [];
+    for (let pair of pair_list){
+      list.push(pair[0]);
+    }
+    return list;
+  }
+  add_pair(flan,interactable){
+    this.pairs.push([flan,interactable]);
+  }
+  remove_pair(flan,interactable){
+    this.pairs.splice(this.pairs.indexOf([flan,interactable]),1)
+  }
+  resolve(){
+    for(let pair of this.pairs){
+      pair[1].interact_with(pair[0])
+    }
+  }
+}
+
+class Matchmaker{
+  constructor(board){
+    this.board = board;
+    this.flans = this.board.flans.filter(flan => !flan.stuck);
+    this.holders = [];
+    this.seekers = [];
+    this.holder_queue = new Interaction_Queue(board);
+    this.seeker_queue = new Interaction_Queue(board);
+    for(let flan of this.flans){
+      flan.reset_interact_preferences();
+    }
+  }
+  consult_next_holder(){ // don't call me when holders.length = 0
+    let flan=this.holders.shift();
+    if (flan.interact_preferences.length === 0) return;
+    let target = flan.interact_preferences.shift();
+    if (!target || target instanceof Giver) {
+      this.holders.push(flan);
+      return;
+    }
+    let competer = target.prefers(flan,this.holder_queue)
+    if (competer){
+      if (!(competer instanceof Flan)){ //the way is clear. No competition!
+        this.holder_queue.add_pair(flan, target);
+      } else { // we can usurp
+        this.holder_queue.remove_pair(competer,target);
+        this.holders.push(competer);
+        this.holder_queue.add_pair(flan,target);
+      }
+    } else { // we are not wanted here.
+      this.holders.push(flan);
+    }
+    return;
+  }
+  consult_next_seeker(){ // don't call me when seekers.length = 0
+    let flan=this.seekers.shift();
+    if (flan.interact_preferences.length === 0) return;
+    let target = flan.interact_preferences.shift();
+    if (!target || target instanceof Taker) {
+      this.seekers.push(flan);
+      return;
+    }
+    let competer = target.prefers(flan,this.seeker_queue)
+    if (competer){
+      if (!(competer instanceof Flan)){ //the way is clear. No competition!
+        this.seeker_queue.add_pair(flan, target);
+      } else { // we can usurp
+        this.seeker_queue.remove_pair(competer,target);
+        this.seekers.push(competer);
+        this.seeker_queue.add_pair(flan,target);
+      }
+    } else { // we are not wanted here.
+      this.seekers.push(flan);
+    }
+    return;
+  }
+  match(){
+    this.holders = this.flans.filter(flan => flan.holding);
+    while(this.holders.length > 0 ){
+      this.consult_next_holder();
+    }
+    this.holder_queue.resolve();
+    this.seekers = this.flans.filter(flan => !flan.holding);
+    while(this.seekers.length > 0 ){
+      this.consult_next_seeker();
+    }
+    this.seeker_queue.resolve();
+  }
+}
+
+class Interactable{
+  constructor(tile){
+    this.tile = tile;
+    this.tile.interactable = this;
+    this.tile_preferences = [
+      this.tile.east(),
+      this.tile.south(),
+      this.tile.west(),
+      this.tile.north()
+    ];
+  }
+  deconstruct(){
+    this.tile.interactable = false;
+  }
+  prefers(flan,queue){
+    let my_flans = queue.flans_of(this);
+    if (my_flans.length < this.max_interactions()) return true;
+    for (let competing_flan of my_flans){
+      if (this.tile_preferences.indexOf(flan.tile) < this.tile_preferences.indexOf(competing_flan.tile)){
+        return competing_flan;
+      }
+    }
+    return false;
+  }
+}
+
+class Taker extends Interactable{
+  constructor(tile){
+    super(tile);
+    this.holding = [];
+  }
+  interact_with(flan){
+    this.take_from(flan)
+  }
+  take_from(flan){
+    this.holding.push(flan.holding);
+    flan.holding = false;
+  }
+  max_interactions(resource_type=false){
+    return 100; // a very large number, to simulate infinity.
+  }
+}
+
+class Giver extends Interactable{
+  interact_with(flan){
+    this.give_to(flan)
+  }
+  replenish(){
+    this.resource_count = this.base_resource_count;
+  }
+  give_to(flan){
+    flan.holding = this.resource_type;
+    this.resource_count--;
+  }
+  max_interactions(resource_type=false){
+    return this.resource_count;
+  }
+}
+
+class Castle extends Taker{
+  appearance(){
+    return 'C';
+  }
+}
+
+class Berry_Bush extends Giver{
+  constructor(tile){
+    super(tile);
+    this.base_resource_count = 2;
+    this.resource_type = 'berry';
+    
+    this.replenish();
+  }
+  appearance(){
+    switch(this.resource_count){
+      case 2:
+        return 'BB';
+        break;
+      case 1:
+        return 'Bb';
+        break;
+      case 0:
+        return 'bb';
+        break;
+      default:
+        console.log('Error! Wrong number fo resources!');
+        console.log(this)
+    }
+  }
+}
+
+class Tree extends Giver{
+  constructor(tile){
+    super(tile);
+    this.base_resource_count = 1;
+    this.resource_type = 'wood';
+
+    this.replenish();
+  }
+  appearance(){
+    if (this.resource_count === 1){
+      return 'T';
+    } else {
+      return 't';
+    }
+  }
+}
+
+
 
 class House {
   constructor(board,i,j,direction, decorator = ""){
@@ -560,6 +813,7 @@ class House {
   }
   recall_flan(){
     this.flan.move_to(this.tile.x,this.tile.y,this.direction);
+    this.flan.holding=false;
     this.board.is_changed = true;
   }
   deconstruct(){
@@ -851,13 +1105,15 @@ $(document).ready(function(){
   h3 = new House(b,1,3,"N","3");
   h4 = new House(b,2,3,"N","4");
 
+  b.axes[4][4].tree_toggle();
+  b.axes[1][2].castle_toggle();
+  b.axes[2][0].berry_bush_toggle();
+
   b.render();
   setInterval(function(){
     b.next_frame();
   },10)
 });
-
-
 
 $(document).ready(function(){
     $("#reset").click(function(){
@@ -874,6 +1130,18 @@ $(document).ready(function(){
     });
     $("#house_toggle").click(function(){
         b.selected_tool = "house_toggle";
+        b.update_tool_display();
+    });
+    $("#tree_toggle").click(function(){
+        b.selected_tool = "tree_toggle";
+        b.update_tool_display();
+    });
+    $("#castle_toggle").click(function(){
+        b.selected_tool = "castle_toggle";
+        b.update_tool_display();
+    });
+    $("#berry_bush_toggle").click(function(){
+        b.selected_tool = "berry_bush_toggle";
         b.update_tool_display();
     });
 });
@@ -894,6 +1162,9 @@ $(document).ready(function(){
  <button id="rotate_house"> Rotate House </button>
  <button id="road_toggle"> Road Toggle </button>
  <button id="house_toggle"> House Toggle </button>
+ <button id="tree_toggle"> Tree Toggle </button>
+ <button id="castle_toggle"> Castle Toggle </button>
+ <button id="berry_bush_toggle"> Berry Bush Toggle </button>
  </div>
  <div id="selected_tool">
  </div>
