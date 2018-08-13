@@ -1017,8 +1017,20 @@ class Game_window {
       case "W":
         var hogimg = document.getElementById("up_left_hog");
         break;
-    }
+    }    
     ctx.drawImage(hogimg,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
+    if(flan.holding){
+      let item = document.getElementById("berry");
+      switch(flan.holding){
+        case "berry":
+          item = document.getElementById("berry");
+          break;
+        case "wood":
+          item = document.getElementById("wood");
+          break;
+      }
+      ctx.drawImage(item,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
+    }
     ctx.restore();    
   }
   draw_flans_at(x,y,fraction = 1){
@@ -1056,6 +1068,43 @@ class Game_window {
                            this.tile_size*Math.sqrt(2),
                            this.tile_size*Math.sqrt(0.5));
   }
+  draw_interactable_at(x,y){
+    let board_x = mod(x, this.board.width);
+    let board_y = mod(y, this.board.height);
+    let interactable = this.board.axes[board_x][board_y].interactable;
+    if (!interactable) return;
+    let graphic = document.getElementById("castle");
+
+    if (interactable instanceof Castle){
+      graphic = document.getElementById("castle");
+    } else if ( interactable instanceof Berry_Bush){
+      switch (interactable.resource_count){
+        case 2:
+          graphic = document.getElementById("berry_bush_2");
+          break;
+        case 1:
+          graphic = document.getElementById("berry_bush_1");
+          break;
+        default:
+          graphic = document.getElementById("berry_bush_0");
+          break;          
+      }
+    } else if ( interactable instanceof Tree){
+      switch (interactable.resource_count){
+        case 1:
+          graphic = document.getElementById("tree_1");
+          break;
+        default:
+          graphic = document.getElementById("tree_0");
+      }
+    }
+
+    this.context.drawImage(graphic,
+                           this.skewed_position_x(x,y)-this.tile_size*Math.sqrt(0.5),
+                           this.skewed_position_y(x,y),
+                           this.tile_size*Math.sqrt(2),
+                           this.tile_size*Math.sqrt(0.5));
+  }
   hop_path(start,end,fraction){//feed this objects with x and y
     var jumpheight = 60;
     var obj ={
@@ -1084,6 +1133,7 @@ class Game_window {
     this.do_everywhere_visible(this.draw_floor_at);
     this.do_everywhere_visible(this.draw_road_at);
     this.do_everywhere_visible(this.draw_house_at);
+    this.do_everywhere_visible(this.draw_interactable_at);
     this.do_everywhere_visible(this.draw_flans_at,fraction*2);    
   }
 }
@@ -1184,6 +1234,14 @@ $(document).ready(function(){
  <img id="hole_up_right"   src=resources/holes/hole_up_right.png>
  <img id="hole_down_left"  src=resources/holes/hole_down_left.png>
  <img id="hole_down_right" src=resources/holes/hole_down_right.png>
+ <img id="castle" src=resources/castle.png>
+ <img id="berry_bush_0" src=resources/berry_bush/berry_bush_0.png>
+ <img id="berry_bush_1" src=resources/berry_bush/berry_bush_1.png>
+ <img id="berry_bush_2" src=resources/berry_bush/berry_bush_2.png>
+ <img id="tree_0" src=resources/tree/tree_0.png>
+ <img id="tree_1" src=resources/tree/tree_1.png>
+ <img id="berry" src=resources/berry.png>
+ <img id="wood" src=resources/wood.png>
  </p>
 
 </body>
