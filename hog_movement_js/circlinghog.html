@@ -711,6 +711,9 @@ class Matchmaker{
       this.consult_next_holder();
     }
     this.holder_queue.resolve();
+    for (let flan of this.flans){
+      flan.reset_interact_preferences();
+    }
     this.seekers = this.flans.filter(flan => !flan.holding);
     while(this.seekers.length > 0 ){
       this.consult_next_seeker();
