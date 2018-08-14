@@ -641,7 +641,7 @@ class Interaction_Queue{
 class Matchmaker{
   constructor(board){
     this.board = board;
-    this.flans = this.board.flans.filter(flan => !flan.stuck);
+    this.flans = this.board.flans.filter(flan => flan.hopped_from);
     this.holders = [];
     this.seekers = [];
     this.holder_queue = new Interaction_Queue(board);
