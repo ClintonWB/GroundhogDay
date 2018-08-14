@@ -174,13 +174,13 @@ class Tile{
   east(){
     let x = this.x;
     let y = this.y;
-    x = mod(x+1, this.board.height);
+    x = mod(x+1, this.board.width);
     return this.board.axes[x][y];
   }
   west(){
     let x = this.x;
     let y = this.y;
-    x = mod(x-1, this.board.height);
+    x = mod(x-1, this.board.width);
     return this.board.axes[x][y];
   }
 }
@@ -202,6 +202,7 @@ class Board{
     this.selected_tool = "road_toggle";
     this.window = new Game_window(this);
     this.frame=0;
+    this.matchmaker='';
   }
   remove_flan(flan){
     var index = this.flans.indexOf(flan);
@@ -231,8 +232,8 @@ class Board{
     for (let flan of this.flans){
       flan.step();
     };
-    let matchmaker = new Matchmaker(this)
-    matchmaker.match();
+    this.matchmaker = new Matchmaker(this)
+    this.matchmaker.match();
     this.number_of_steps ++;
   }
   recall_flan(){
@@ -330,6 +331,10 @@ class Flan{
     this.previous_stack_position = 0;
     this.interact_preferences = [];
     this.holding = false;
+    this.previous_holding = false;
+    this.interacted = false;
+    this.gave_to = false;
+    this.took_from = false;
     //change other variables upon creation
     board.flans.push(this);
     board.axes[x][y].flans.push(this);
@@ -362,7 +367,7 @@ class Flan{
       s.addClass("stuck");
     }
     let string=arrows[this.direction]+this.decorator;
-    if (this.holding) string += this.holding;
+    if (this.holding) string += this.holding[0];
     s.text(string);
     return s;
   };
@@ -574,6 +579,21 @@ class Flan{
     };
     return obj;
   }
+  direction_of(tile){
+    if (this.tile().north() === tile){
+      return 'N'
+    } else if (this.tile().east() === tile){
+      return 'E'
+    } else if (this.tile().south() === tile){
+      return 'S'
+    } else if (this.tile().west() === tile){
+      return 'W'
+    } else {
+      console.log('how did these two even meet?')
+      console.log(this)
+      console.log(tile)
+    }
+  }
 }
 
 //This function rotates a vector (x,y) "n" steps clockwise.
@@ -612,7 +632,8 @@ class Interaction_Queue{
   }
   resolve(){
     for(let pair of this.pairs){
-      pair[1].interact_with(pair[0])
+      pair[1].interact_with(pair[0]);
+      pair[0].interacted = true;
     }
   }
 }
@@ -625,8 +646,19 @@ class Matchmaker{
     this.seekers = [];
     this.holder_queue = new Interaction_Queue(board);
     this.seeker_queue = new Interaction_Queue(board);
-    for(let flan of this.flans){
+    for(let flan of this.board.flans){
+      flan.previous_holding = flan.holding;
+      flan.interacted = false;
+      flan.gave_to = false;
+      flan.took_from = false;
       flan.reset_interact_preferences();
+    }
+    for(var i=0;i<board.width;i++){
+      for(var j=0;j<board.height;j++){
+        if(board.axes[i][j].interactable instanceof Giver){
+          board.axes[i][j].interactable.previous_resource_count = board.axes[i][j].interactable.resource_count;
+        }        
+      }
     }
   }
   consult_next_holder(){ // don't call me when holders.length = 0
@@ -724,6 +756,7 @@ class Taker extends Interactable{
   take_from(flan){
     this.holding.push(flan.holding);
     flan.holding = false;
+    flan.gave_to = this;
   }
   max_interactions(resource_type=false){
     return 100; // a very large number, to simulate infinity.
@@ -736,9 +769,11 @@ class Giver extends Interactable{
   }
   replenish(){
     this.resource_count = this.base_resource_count;
+    this.previous_resource_count = this.base_resource_count;
   }
   give_to(flan){
     flan.holding = this.resource_type;
+    flan.took_from = this;
     this.resource_count--;
   }
   max_interactions(resource_type=false){
@@ -772,7 +807,7 @@ class Berry_Bush extends Giver{
         return 'bb';
         break;
       default:
-        console.log('Error! Wrong number fo resources!');
+        console.log('Error! Wrong number of resources!');
         console.log(this)
     }
   }
@@ -814,6 +849,9 @@ class House {
   recall_flan(){
     this.flan.move_to(this.tile.x,this.tile.y,this.direction);
     this.flan.holding=false;
+    this.flan.interacted=false;
+    this.flan.gave_to=false;
+    this.flan.took_from=false;
     this.board.is_changed = true;
   }
   deconstruct(){
@@ -1019,18 +1057,105 @@ class Game_window {
         break;
     }    
     ctx.drawImage(hogimg,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
+    
+    let prev_item = '';
+    let item = '';
+    if(flan.previous_holding){
+      switch(flan.previous_holding){
+        case "berry":
+          prev_item = document.getElementById("berry");
+          break;
+        case "wood":
+          prev_item = document.getElementById("wood");
+          break;
+      }
+    }
     if(flan.holding){
-      let item = document.getElementById("berry");
       switch(flan.holding){
         case "berry":
           item = document.getElementById("berry");
           break;
         case "wood":
           item = document.getElementById("wood");
-          break;
+          break;        
       }
+    }
+
+    if(fraction<=1 && flan.previous_holding){
+      ctx.drawImage(prev_item,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
+    }
+    if(2>fraction && fraction>1 && flan.holding && !(flan.interacted)){
       ctx.drawImage(item,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
     }
+    
+    if(2>fraction && fraction>1 && flan.gave_to){
+      let from = {
+        x : 0,
+        y : 0
+      };
+      let to = {
+        x : from.x,
+        y : from.y
+      }
+      switch(flan.direction_of(flan.gave_to.tile)){
+        case 'N':
+          to.x += this.tile_size*Math.sqrt(0.5);
+          to.y -= this.tile_size*Math.sqrt(0.125);
+          break;
+        case 'E':
+          to.x += this.tile_size*Math.sqrt(0.5);
+          to.y += this.tile_size*Math.sqrt(0.125);
+          break;
+        case 'S':
+          to.x -= this.tile_size*Math.sqrt(0.5);
+          to.y += this.tile_size*Math.sqrt(0.125);
+          break;
+        case 'W':
+          to.x -= this.tile_size*Math.sqrt(0.5);
+          to.y -= this.tile_size*Math.sqrt(0.125);
+          break;
+        default:
+          console.log('What? Error!')
+      }
+      let item_coords = this.hop_path(from,to,fraction-1);
+      ctx.drawImage(prev_item,- this.tile_size*0.4+item_coords.x,-this.tile_size*0.2+item_coords.y,this.tile_size*0.8,this.tile_size*0.8);
+    }
+    if(2>fraction && fraction>1 && flan.took_from){
+      let from = {
+        x : 0,
+        y : 0
+      };
+      let to = {
+        x : from.x,
+        y : from.y
+      }
+      switch(flan.direction_of(flan.took_from.tile)){
+        case 'N':
+          to.x += this.tile_size*Math.sqrt(0.5);
+          to.y -= this.tile_size*Math.sqrt(0.125);
+          break;
+        case 'E':
+          to.x += this.tile_size*Math.sqrt(0.5);
+          to.y += this.tile_size*Math.sqrt(0.125);
+          break;
+        case 'S':
+          to.x -= this.tile_size*Math.sqrt(0.5);
+          to.y += this.tile_size*Math.sqrt(0.125);
+          break;
+        case 'W':
+          to.x -= this.tile_size*Math.sqrt(0.5);
+          to.y -= this.tile_size*Math.sqrt(0.125);
+          break;
+        default:
+          console.log('What? Error!')
+      }
+      let item_coords = this.hop_path(to,from,fraction-1);
+      ctx.drawImage(item,- this.tile_size*0.4+item_coords.x,-this.tile_size*0.2+item_coords.y,this.tile_size*0.8,this.tile_size*0.8);
+    }
+    if(fraction>=2 && flan.holding ){
+      ctx.drawImage(item,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
+    }
+
     ctx.restore();    
   }
   draw_flans_at(x,y,fraction = 1){
@@ -1068,7 +1193,7 @@ class Game_window {
                            this.tile_size*Math.sqrt(2),
                            this.tile_size*Math.sqrt(0.5));
   }
-  draw_interactable_at(x,y){
+  draw_interactable_at(x,y,fraction=1){
     let board_x = mod(x, this.board.width);
     let board_y = mod(y, this.board.height);
     let interactable = this.board.axes[board_x][board_y].interactable;
@@ -1078,7 +1203,13 @@ class Game_window {
     if (interactable instanceof Castle){
       graphic = document.getElementById("castle");
     } else if ( interactable instanceof Berry_Bush){
-      switch (interactable.resource_count){
+      let count = '';
+      if(fraction<=1){
+        count = interactable.previous_resource_count;
+      } else {
+        count = interactable.resource_count;
+      }
+      switch (count){
         case 2:
           graphic = document.getElementById("berry_bush_2");
           break;
@@ -1090,12 +1221,19 @@ class Game_window {
           break;          
       }
     } else if ( interactable instanceof Tree){
-      switch (interactable.resource_count){
+      let count = '';
+      if(fraction<=1){
+        count = interactable.previous_resource_count;
+      } else {
+        count = interactable.resource_count;
+      }
+      switch (count){
         case 1:
           graphic = document.getElementById("tree_1");
           break;
         default:
           graphic = document.getElementById("tree_0");
+          break;          
       }
     }
 
@@ -1133,8 +1271,8 @@ class Game_window {
     this.do_everywhere_visible(this.draw_floor_at);
     this.do_everywhere_visible(this.draw_road_at);
     this.do_everywhere_visible(this.draw_house_at);
-    this.do_everywhere_visible(this.draw_interactable_at);
-    this.do_everywhere_visible(this.draw_flans_at,fraction*2);    
+    this.do_everywhere_visible(this.draw_interactable_at,fraction*3);
+    this.do_everywhere_visible(this.draw_flans_at,fraction*3);    
   }
 }
 
@@ -1162,7 +1300,7 @@ $(document).ready(function(){
   b.render();
   setInterval(function(){
     b.next_frame();
-  },10)
+  },14)
 });
 
 $(document).ready(function(){
