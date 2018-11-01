@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8"/>
 <title>Demo Hog Movement</title>
 </head>
 
@@ -34,13 +35,13 @@ function mod(m,n){
 }
 
 class Tile{
-  constructor(board, x, y, floor){
+  constructor(board, x, y, floor = ''){
     this.board = board;
     this.x = x;
     this.y = y;
     this.floor = floor;
     this.flans = [];
-    this.houses = [];
+    this.house = false;
     this.interactable = false;
   }
   appearance(){
@@ -48,8 +49,8 @@ class Tile{
     if (this.interactable){
       s.append(this.interactable.appearance());
     }
-    for (let house of this.houses){
-      s.append(house.appearance());
+    if (this.house){
+      s.append(this.house.appearance());
     };
     for (let flan of this.flans){
       s.append(flan.appearance());
@@ -60,12 +61,6 @@ class Tile{
     var index = this.flans.indexOf(flan);
     if (index > -1) {
       this.flans.splice(index,1);
-    };
-  }
-  remove_house(house){
-    var index = this.houses.indexOf(house);
-    if (index > -1) {
-      this.houses.splice(index,1);
     };
   }
   flan_pointing(direction){
@@ -92,10 +87,10 @@ class Tile{
     }
   }
   house_toggle(){
-    if(this.houses.length > 0){
-      this.houses[0].deconstruct();
+    if(this.house){
+      this.house.deconstruct();
     } else {
-      new House(this.board,this.x,this.y,"N");
+      new House(this,"N");
     }
   }
   tree_toggle(){
@@ -122,7 +117,7 @@ class Tile{
   on_click(){
     switch (this.board.selected_tool){
       case "rotate_house":
-        if(this.houses.length>0)this.houses[0].rotate();
+        if(this.house)this.house.rotate();
         break;
       case "road_toggle":
         this.road_toggle();
@@ -157,6 +152,18 @@ class Tile{
       td.addClass('road');
     } else {
       td.removeClass('road');
+    }
+  }
+  to_my(direction){
+    switch(direction){
+      case "N":
+        return this.north();
+      case "S":
+        return this.south();
+      case "E":
+        return this.east();
+      case "W":
+        return this.west();
     }
   }
   north(){
@@ -316,12 +323,10 @@ arrows = {
 }
 
 class Flan{
-  constructor(board,x,y,direction){
+  constructor(tile,direction){
     //variables
-    this.x = x;
-    this.y = y;
+    this.tile= tile;
     this.direction = direction;
-    this.board = board;
     this.has_stepped = false;
     this.is_waiting = false;
     this.looped = false;
@@ -336,8 +341,8 @@ class Flan{
     this.gave_to = false;
     this.took_from = false;
     //change other variables upon creation
-    board.flans.push(this);
-    board.axes[x][y].flans.push(this);
+    tile.board.flans.push(this);
+    tile.flans.push(this);
   }
   reset_interact_preferences(){
     let neighbors = this.neighbor_tiles();
@@ -348,14 +353,11 @@ class Flan{
     ]
   }
   stack_position(){
-    return this.tile().flans.indexOf(this);
-  }
-  tile(){
-    return this.board.axes[this.x][this.y];
+    return this.tile.flans.indexOf(this);
   }
   deconstruct(){
-    this.tile().remove_flan(this);
-    this.board.remove_flan(this);
+    this.tile.remove_flan(this);
+    this.tile.board.remove_flan(this);
   }
   appearance(){
     var s = $("<span>");
@@ -373,44 +375,49 @@ class Flan{
   };
   move(move_direction = this.going()){
     if (move_direction === '') return;
-    this.hopped_from = this.tile();
-    this.tile().remove_flan(this);
+    this.hopped_from = this.tile;
+    this.tile.remove_flan(this);
     switch(move_direction){
       case "N":
-        this.y += 1;
+        this.tile = this.tile.north();
         break;
       case "E":
-        this.x += 1;
+        this.tile = this.tile.east();
         break;
       case "W":
-        this.x -= 1;
+        this.tile = this.tile.west();
         break;
       case "S":
-        this.y -= 1;
+        this.tile = this.tile.south();
     }
-    this.x = mod(this.x,this.board.width);
-    this.y = mod(this.y,this.board.height);
     this.direction = move_direction;
-    this.tile().flans.push(this);
+    this.tile.flans.push(this);
   };
-  move_to(x = this.x,y=this.y,direction = this.direction){
-    this.tile().remove_flan(this);
-    this.x = mod(x,this.board.width);
-    this.y = mod(y,this.board.height);
+  move_to(x = this.tile.x,y=this.tile.y,direction = this.direction){
+    this.tile.remove_flan(this);
+    x = mod(x,this.tile.board.width);
+    y = mod(y,this.tile.board.height);
+    this.tile = this.tile.board.axes[x][y];
     this.direction = direction;
-    this.tile().flans.push(this);
+    this.tile.flans.push(this);
   }
   neighbor_tiles(){
-    let left_coords = this.local2absolute(-1,0);
-    let right_coords = this.local2absolute(1,0);
-    let front_coords = this.local2absolute(0,1);
-    let back_coords = this.local2absolute(0,-1);
     var obj = {
-      left: this.board.axes[left_coords.x][left_coords.y],
-      right: this.board.axes[right_coords.x][right_coords.y],
-      front: this.board.axes[front_coords.x][front_coords.y],
-      back: this.board.axes[back_coords.x][back_coords.y]
+      left:  this.tile.to_my(this.left()),
+      right: this.tile.to_my(this.right()),
+      front: this.tile.to_my(this.direction),
+      back:  this.tile.to_my(this.back())
     };
+    //let left_coords = this.local2absolute(-1,0);
+    //let right_coords = this.local2absolute(1,0);
+    //let front_coords = this.local2absolute(0,1);
+    //let back_coords = this.local2absolute(0,-1);
+    //var obj = {
+    //  left: this.tile.board.axes[left_coords.x][left_coords.y],
+    //  right: this.tile.board.axes[right_coords.x][right_coords.y],
+    //  front: this.tile.board.axes[front_coords.x][front_coords.y],
+    //  back: this.tile.board.axes[back_coords.x][back_coords.y]
+    //};
     return obj;
   }
   right(){
@@ -442,17 +449,17 @@ class Flan{
     return '';
   }
   following(){
-    var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
+    var temp_flan = new Flan(this.tile,this.direction);
     temp_flan.move();
-    var test_tile = temp_flan.tile();
+    var test_tile = temp_flan.tile;
     var test_direction = temp_flan.going();
     temp_flan.deconstruct();
     return test_tile.flan_going(test_direction);
   }
   going_to_t(){
-    var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
+    var temp_flan = new Flan(this.tile,this.direction);
     temp_flan.move();
-    if (temp_flan.tile() === this.tile()){
+    if (temp_flan.tile === this.tile){
       temp_flan.deconstruct();
       return false;
     }
@@ -465,7 +472,7 @@ class Flan{
   }
   flan_competing_for_t(){
     if (! this.going_to_t()) return false;
-    var temp_flan = new Flan(this.board,this.x,this.y,this.direction);
+    var temp_flan = new Flan(this.tile,this.direction);
     temp_flan.move();
     var ret_val = temp_flan.neighbor_tiles().left.flan_going(temp_flan.right());
     temp_flan.deconstruct();
@@ -551,8 +558,8 @@ class Flan{
     var shift = rotate(right,ahead,turns);
     var x = this.x + shift.x;
     var y = this.y + shift.y;
-    x=mod(x,this.board.width);
-    y=mod(y,this.board.height);
+    x=mod(x,this.tile.board.width);
+    y=mod(y,this.tile.board.height);
     var obj ={
       x:x,
       y:y
@@ -562,8 +569,8 @@ class Flan{
   //This function gives the local coordinates of a point (x,y)
   //in terms of the number of spaces "right" and "ahead" of the flan
   absolute2local(x,y){
-    x=mod(x,this.board.width);
-    y=mod(y,this.board.height);
+    x=mod(x,this.tile.board.width);
+    y=mod(y,this.tile.board.height);
     var shift={
       x: x-this.x,
       y: y-this.y
@@ -580,13 +587,13 @@ class Flan{
     return obj;
   }
   direction_of(tile){
-    if (this.tile().north() === tile){
+    if (this.tile.north() === tile){
       return 'N'
-    } else if (this.tile().east() === tile){
+    } else if (this.tile.east() === tile){
       return 'E'
-    } else if (this.tile().south() === tile){
+    } else if (this.tile.south() === tile){
       return 'S'
-    } else if (this.tile().west() === tile){
+    } else if (this.tile.west() === tile){
       return 'W'
     } else {
       console.log('how did these two even meet?')
@@ -836,15 +843,14 @@ class Tree extends Giver{
 
 
 class House {
-  constructor(board,i,j,direction, decorator = ""){
-    this.board = board;
-    this.tile = board.axes[i][j];
+  constructor(tile,direction, decorator = ""){
+    this.tile = tile;
     this.direction = direction;
     this.decorator = decorator;
-    this.flan = new Flan(board,i,j,direction);
+    this.flan = new Flan(this.tile,direction);
     this.flan.decorator = decorator;
-    this.board.houses.push(this);
-    this.tile.houses.push(this);
+    this.tile.board.houses.push(this);
+    this.tile.house = this;
   }
   appearance(){
     return "H"+this.decorator+arrows[this.direction];
@@ -855,12 +861,12 @@ class House {
     this.flan.interacted=false;
     this.flan.gave_to=false;
     this.flan.took_from=false;
-    this.board.is_changed = true;
+    this.tile.board.is_changed = true;
   }
   deconstruct(){
     this.flan.deconstruct();
-    this.board.remove_house(this);
-    this.tile.remove_house(this);
+    this.tile.board.remove_house(this);
+    this.tile.house=false;
   }
   rotate(times = 1){
     for (var i=0; i<times; i++){
@@ -1172,8 +1178,8 @@ class Game_window {
   draw_house_at(x,y){
     var board_x = mod(x, this.board.width);
     var board_y = mod(y, this.board.height);
-    var house = this.board.axes[board_x][board_y].houses[0];
-    if (house === undefined) return;
+    var house = this.board.axes[board_x][board_y].house;
+    if (! house) return;
     
     switch(house.direction){
       case "N":
@@ -1291,10 +1297,10 @@ $(document).ready(function(){
   b.axes[3][2].floor="r";
   b.axes[3][3].floor="r";
   b.axes[3][4].floor="r";
-  h1 = new House(b,0,4,"E","1");
-  h2 = new House(b,1,5,"S","2");
-  h3 = new House(b,1,3,"N","3");
-  h4 = new House(b,2,3,"N","4");
+  h1 = new House(b.axes[0][4],"E","1");
+  h2 = new House(b.axes[1][5],"S","2");
+  h3 = new House(b.axes[1][3],"N","3");
+  h4 = new House(b.axes[2][3],"N","4");
 
   b.axes[4][4].tree_toggle();
   b.axes[1][2].castle_toggle();
