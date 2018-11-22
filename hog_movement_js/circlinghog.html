@@ -29,9 +29,17 @@ td{
 </script>
 
 <script type="text/javascript">
+"use strict";
 
 function mod(m,n){
   return (m%n + n)%n;
+}
+
+let ARROWS = {
+  "N":"↑",
+  "E":"→",
+  "W":"←",
+  "S":"↓"
 }
 
 class Tile{
@@ -44,16 +52,16 @@ class Tile{
     this.house = false;
     this.interactable = false;
   }
-  appearance(){
+  get appearance(){
     var s=$("<span>");
     if (this.interactable){
-      s.append(this.interactable.appearance());
+      s.append(this.interactable.appearance);
     }
     if (this.house){
-      s.append(this.house.appearance());
+      s.append(this.house.appearance);
     };
     for (let flan of this.flans){
-      s.append(flan.appearance());
+      s.append(flan.appearance);
     };
     return s;
   }
@@ -141,13 +149,13 @@ class Tile{
     this.board.is_changed = true;
     this.render_update();
   }
-  id(){
+  get id(){
     return 'tile_'+this.x+'_'+this.y;
   }
   render_update(){
-    var td = $('#'+this.id());
+    var td = $('#'+this.id);
     td.empty();
-    td.append(this.appearance());
+    td.append(this.appearance);
     if (this.floor === 'r'){
       td.addClass('road');
     } else {
@@ -157,34 +165,34 @@ class Tile{
   to_my(direction){
     switch(direction){
       case "N":
-        return this.north();
+        return this.north;
       case "S":
-        return this.south();
+        return this.south;
       case "E":
-        return this.east();
+        return this.east;
       case "W":
-        return this.west();
+        return this.west;
     }
   }
-  north(){
+  get north(){
     let x = this.x;
     let y = this.y;
     y = mod(y+1, this.board.height);
     return this.board.axes[x][y];
   }
-  south(){
+  get south(){
     let x = this.x;
     let y = this.y;
     y = mod(y-1, this.board.height);
     return this.board.axes[x][y];
   }
-  east(){
+  get east(){
     let x = this.x;
     let y = this.y;
     x = mod(x+1, this.board.width);
     return this.board.axes[x][y];
   }
-  west(){
+  get west(){
     let x = this.x;
     let y = this.y;
     x = mod(x-1, this.board.width);
@@ -227,7 +235,7 @@ class Board{
     for (let flan of this.flans){
       flan.has_stepped = false;
       flan.hopped_from = false;
-      flan.previous_stack_position = flan.stack_position();
+      flan.previous_stack_position = flan.stack_position;
     };
     if (this.is_changed){
       for (let flan of this.flans){
@@ -270,11 +278,11 @@ class Board{
       for (var i=0;i<this.width;i++){
         var td = $("<td>");
         var tile = this.axes[i][j];
-        td.attr("id",tile.id());
+        td.attr("id",tile.id);
         if (tile.floor === "r") {
           td.addClass("road")
         }
-        td.append(tile.appearance());
+        td.append(tile.appearance);
 
         let clickhandlerfactory = function(i,j,board){
           return function(){
@@ -315,12 +323,7 @@ class Board{
     }
   }
 }
-arrows = {
-  "N":"↑",
-  "E":"→",
-  "W":"←",
-  "S":"↓"
-}
+
 
 class Flan{
   constructor(tile,direction){
@@ -352,14 +355,14 @@ class Flan{
       neighbors.left.interactable
     ]
   }
-  stack_position(){
+  get stack_position(){
     return this.tile.flans.indexOf(this);
   }
   deconstruct(){
     this.tile.remove_flan(this);
     this.tile.board.remove_flan(this);
   }
-  appearance(){
+  get appearance(){
     var s = $("<span>");
     s.addClass("flan");
     if(this.looped){
@@ -368,7 +371,7 @@ class Flan{
     if(this.stuck){
       s.addClass("stuck");
     }
-    let string=arrows[this.direction]+this.decorator;
+    let string=ARROWS[this.direction]+this.decorator;
     if (this.holding) string += this.holding[0];
     s.text(string);
     return s;
@@ -379,16 +382,16 @@ class Flan{
     this.tile.remove_flan(this);
     switch(move_direction){
       case "N":
-        this.tile = this.tile.north();
+        this.tile = this.tile.north;
         break;
       case "E":
-        this.tile = this.tile.east();
+        this.tile = this.tile.east;
         break;
       case "W":
-        this.tile = this.tile.west();
+        this.tile = this.tile.west;
         break;
       case "S":
-        this.tile = this.tile.south();
+        this.tile = this.tile.south;
     }
     this.direction = move_direction;
     this.tile.flans.push(this);
@@ -403,36 +406,26 @@ class Flan{
   }
   neighbor_tiles(){
     var obj = {
-      left:  this.tile.to_my(this.left()),
-      right: this.tile.to_my(this.right()),
+      left:  this.tile.to_my(this.left),
+      right: this.tile.to_my(this.right),
       front: this.tile.to_my(this.direction),
-      back:  this.tile.to_my(this.back())
+      back:  this.tile.to_my(this.back)
     };
-    //let left_coords = this.local2absolute(-1,0);
-    //let right_coords = this.local2absolute(1,0);
-    //let front_coords = this.local2absolute(0,1);
-    //let back_coords = this.local2absolute(0,-1);
-    //var obj = {
-    //  left: this.tile.board.axes[left_coords.x][left_coords.y],
-    //  right: this.tile.board.axes[right_coords.x][right_coords.y],
-    //  front: this.tile.board.axes[front_coords.x][front_coords.y],
-    //  back: this.tile.board.axes[back_coords.x][back_coords.y]
-    //};
     return obj;
   }
-  right(){
+  get right(){
     return {"N":"E",
             "E":"S",
             "S":"W",
             "W":"N"}[this.direction]
   }
-  left(){
+  get left(){
     return {"N":"W",
             "W":"S",
             "S":"E",
             "E":"N"}[this.direction]
   }
-  back(){
+  get back(){
     return {"N":"S",
             "S":"N",
             "W":"E",
@@ -442,9 +435,9 @@ class Flan{
     if (this.neighbor_tiles().front.floor === 'r'){
       return this.direction;
     } else if (this.neighbor_tiles().right.floor === 'r'){
-      return this.right();
+      return this.right;
     } else if (this.neighbor_tiles().left.floor === 'r'){
-      return this.left();
+      return this.left;
     }
     return '';
   }
@@ -474,7 +467,7 @@ class Flan{
     if (! this.going_to_t()) return false;
     var temp_flan = new Flan(this.tile,this.direction);
     temp_flan.move();
-    var ret_val = temp_flan.neighbor_tiles().left.flan_going(temp_flan.right());
+    var ret_val = temp_flan.neighbor_tiles().left.flan_going(temp_flan.right);
     temp_flan.deconstruct();
     if (ret_val.has_stepped){
       return false;
@@ -547,53 +540,15 @@ class Flan{
     this.has_stepped = true;
     return;
   }
-  //This function gives the absolute coordinates of a 
-  //space that is "right" spaces to the right and "ahead" spaces
-  //ahead from the flan.
-  local2absolute(right,ahead){
-    var turns = {"N":0,
-             "E":1,
-             "S":2,
-             "W":3}[this.direction];
-    var shift = rotate(right,ahead,turns);
-    var x = this.x + shift.x;
-    var y = this.y + shift.y;
-    x=mod(x,this.tile.board.width);
-    y=mod(y,this.tile.board.height);
-    var obj ={
-      x:x,
-      y:y
-    };
-    return obj;
-  }
-  //This function gives the local coordinates of a point (x,y)
-  //in terms of the number of spaces "right" and "ahead" of the flan
-  absolute2local(x,y){
-    x=mod(x,this.tile.board.width);
-    y=mod(y,this.tile.board.height);
-    var shift={
-      x: x-this.x,
-      y: y-this.y
-    };
-    var turns = {"N":0,
-             "E":1,
-             "S":2,
-             "W":3}[this.direction];
-    var locals = rotate(shift.x,shift.y,-turns);
-    var obj ={
-      right:locals.x,
-      ahead:locals.y
-    };
-    return obj;
-  }
+
   direction_of(tile){
-    if (this.tile.north() === tile){
+    if (this.tile.north === tile){
       return 'N'
-    } else if (this.tile.east() === tile){
+    } else if (this.tile.east === tile){
       return 'E'
-    } else if (this.tile.south() === tile){
+    } else if (this.tile.south === tile){
       return 'S'
-    } else if (this.tile.west() === tile){
+    } else if (this.tile.west === tile){
       return 'W'
     } else {
       console.log('how did these two even meet?')
@@ -601,21 +556,6 @@ class Flan{
       console.log(tile)
     }
   }
-}
-
-//This function rotates a vector (x,y) "n" steps clockwise.
-function rotate(x,y,n){
-  n = mod(n,4);
-  for(var i=0;i<n;i++){
-    var temp=y;
-    y=-x;
-    x=temp;
-  }
-  var obj = {
-    x:x,
-    y:y
-  };
-  return obj;
 }
 
 class Interaction_Queue{
@@ -734,10 +674,10 @@ class Interactable{
     this.tile = tile;
     this.tile.interactable = this;
     this.tile_preferences = [
-      this.tile.east(),
-      this.tile.south(),
-      this.tile.west(),
-      this.tile.north()
+      this.tile.east,
+      this.tile.south,
+      this.tile.west,
+      this.tile.north
     ];
   }
   deconstruct(){
@@ -792,7 +732,7 @@ class Giver extends Interactable{
 }
 
 class Castle extends Taker{
-  appearance(){
+  get appearance(){
     return 'C';
   }
 }
@@ -805,7 +745,7 @@ class Berry_Bush extends Giver{
     
     this.replenish();
   }
-  appearance(){
+  get appearance(){
     switch(this.resource_count){
       case 2:
         return 'BB';
@@ -831,7 +771,7 @@ class Tree extends Giver{
 
     this.replenish();
   }
-  appearance(){
+  get appearance(){
     if (this.resource_count === 1){
       return 'T';
     } else {
@@ -839,8 +779,6 @@ class Tree extends Giver{
     }
   }
 }
-
-
 
 class House {
   constructor(tile,direction, decorator = ""){
@@ -852,8 +790,8 @@ class House {
     this.tile.board.houses.push(this);
     this.tile.house = this;
   }
-  appearance(){
-    return "H"+this.decorator+arrows[this.direction];
+  get appearance(){
+    return "H"+this.decorator+ARROWS[this.direction];
   }
   recall_flan(){
     this.flan.move_to(this.tile.x,this.tile.y,this.direction);
@@ -1022,7 +960,7 @@ class Game_window {
     var new_y = y;
     var new_coords = {
       x : this.skewed_position_x(new_x,new_y),
-      y : this.skewed_position_y(new_x,new_y) - (stack_separation * flan.stack_position())
+      y : this.skewed_position_y(new_x,new_y) - (stack_separation * flan.stack_position)
     };
     if (!flan.hopped_from || fraction >= 1) {
       var current_coords = new_coords;  
@@ -1287,7 +1225,7 @@ class Game_window {
 
 $(document).ready(function(){
 
-  b = new Board(7,6);
+  let b = new Board(7,6);
 
   b.axes[1][4].floor="r";
   b.axes[2][1].floor="r";
@@ -1297,10 +1235,10 @@ $(document).ready(function(){
   b.axes[3][2].floor="r";
   b.axes[3][3].floor="r";
   b.axes[3][4].floor="r";
-  h1 = new House(b.axes[0][4],"E","1");
-  h2 = new House(b.axes[1][5],"S","2");
-  h3 = new House(b.axes[1][3],"N","3");
-  h4 = new House(b.axes[2][3],"N","4");
+  let h1 = new House(b.axes[0][4],"E","1"),
+	h2 = new House(b.axes[1][5],"S","2"),
+	h3 = new House(b.axes[1][3],"N","3"),
+	h4 = new House(b.axes[2][3],"N","4");
 
   b.axes[4][4].tree_toggle();
   b.axes[1][2].castle_toggle();
