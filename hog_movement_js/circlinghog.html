@@ -175,28 +175,16 @@ class Tile{
     }
   }
   get north(){
-    let x = this.x;
-    let y = this.y;
-    y = mod(y+1, this.board.height);
-    return this.board.axes[x][y];
+    return this.board.tileAt(this.x,this.y+1);
   }
   get south(){
-    let x = this.x;
-    let y = this.y;
-    y = mod(y-1, this.board.height);
-    return this.board.axes[x][y];
+    return this.board.tileAt(this.x,this.y-1);
   }
   get east(){
-    let x = this.x;
-    let y = this.y;
-    x = mod(x+1, this.board.width);
-    return this.board.axes[x][y];
+    return this.board.tileAt(this.x+1,this.y);
   }
   get west(){
-    let x = this.x;
-    let y = this.y;
-    x = mod(x-1, this.board.width);
-    return this.board.axes[x][y];
+    return this.board.tileAt(this.x-1,this.y);
   }
 }
 
@@ -205,19 +193,19 @@ class Board{
     this.width = width;
     this.height = height;
     this.axes = [...Array(width)].map(e => Array(height).fill(''));
-    for(var i=0;i<width;i++){
-      for(var j=0;j<height;j++){
-        this.axes[i][j]= new Tile(this,i,j,'');
-      }
-    }
+	this.tiles = [...Array(this.width * this.height)]
+		.map((spot,index) => new Tile(this,mod(index,this.width),Math.floor(index / this.width)));
     this.flans = [];
-    this.is_changed = false;
-    this.number_of_steps = 0;
+    this.is_changed = false; //this variable is used to un-loop and un-stuck all the flan at the appropriate time.
+    this.number_of_steps = 0; //this stores the value for the day-length dispay, and is otherwise unused.
     this.houses = [];
     this.selected_tool = "road_toggle";
     this.window = new Game_window(this);
     this.frame=0;
     this.matchmaker='';
+  }
+  tileAt(x,y){
+	return this.tiles[mod(x,this.width)+this.width*mod(y,this.height)];
   }
   remove_flan(flan){
     var index = this.flans.indexOf(flan);
@@ -257,13 +245,11 @@ class Board{
     };
   }
   replenish_givers(){
-    for(var i=0;i<this.width;i++){
-      for(var j=0;j<this.height;j++){
-        if(this.axes[i][j].interactable instanceof Giver){
-          this.axes[i][j].interactable.replenish();
-        }        
-      }
-    }
+	for(let tile of this.tiles){
+		if(tile.interactable instanceof Giver){
+			tile.interactable.replenish();
+		}
+	}
   }
   reset_day(){
     this.number_of_steps = 0;
@@ -277,7 +263,7 @@ class Board{
       var tr = $("<tr>")
       for (var i=0;i<this.width;i++){
         var td = $("<td>");
-        var tile = this.axes[i][j];
+        var tile = this.tileAt(i,j);
         td.attr("id",tile.id);
         if (tile.floor === "r") {
           td.addClass("road")
@@ -286,7 +272,7 @@ class Board{
 
         let clickhandlerfactory = function(i,j,board){
           return function(){
-            board.axes[i][j].on_click();
+            board.tileAt(i,j).on_click();
           }
         }
         td.bind("click",clickhandlerfactory(i,j,this))
@@ -315,15 +301,12 @@ class Board{
       this.frame = 0;
       this.step();
       this.update_step_display();
-      for(var i=0;i<this.width;i++){
-        for(var j=0;j<this.height;j++){
-          this.axes[i][j].render_update();
-        }
-      }
+	  for(let tile of this.tiles){
+		tile.render_update();
+	  }
     }
   }
 }
-
 
 class Flan{
   constructor(tile,direction){
@@ -396,11 +379,9 @@ class Flan{
     this.direction = move_direction;
     this.tile.flans.push(this);
   };
-  move_to(x = this.tile.x,y=this.tile.y,direction = this.direction){
+  move_to(tile = this.tile,direction = this.direction){
     this.tile.remove_flan(this);
-    x = mod(x,this.tile.board.width);
-    y = mod(y,this.tile.board.height);
-    this.tile = this.tile.board.axes[x][y];
+    this.tile = tile;
     this.direction = direction;
     this.tile.flans.push(this);
   }
@@ -558,6 +539,43 @@ class Flan{
   }
 }
 
+class House {
+  constructor(tile,direction, decorator = ""){
+    this.tile = tile;
+    this.direction = direction;
+    this.decorator = decorator;
+    this.flan = new Flan(this.tile,direction);
+    this.flan.decorator = decorator;
+    this.tile.board.houses.push(this);
+    this.tile.house = this;
+  }
+  get appearance(){
+    return "H"+this.decorator+ARROWS[this.direction];
+  }
+  recall_flan(){
+    this.flan.move_to(this.tile,this.direction);
+    this.flan.holding=false;
+    this.flan.interacted=false;
+    this.flan.gave_to=false;
+    this.flan.took_from=false;
+    this.tile.board.is_changed = true;
+  }
+  deconstruct(){
+    this.flan.deconstruct();
+    this.tile.board.remove_house(this);
+    this.tile.house=false;
+  }
+  rotate(times = 1){
+    for (var i=0; i<times; i++){
+      this.direction = {"N":"E",
+                        "E":"S",
+                        "S":"W",
+                        "W":"N"}[this.direction];
+    }
+    this.recall_flan();
+  }
+}
+
 class Interaction_Queue{
   constructor(board){
     this.board = board;
@@ -600,13 +618,11 @@ class Matchmaker{
       flan.took_from = false;
       flan.reset_interact_preferences();
     }
-    for(var i=0;i<board.width;i++){
-      for(var j=0;j<board.height;j++){
-        if(board.axes[i][j].interactable instanceof Giver){
-          board.axes[i][j].interactable.previous_resource_count = board.axes[i][j].interactable.resource_count;
-        }        
-      }
-    }
+	for(let tile of this.board.tiles){
+		if(tile.interactable instanceof Giver){
+		  tile.interactable.previous_resource_count = tile.interactable.resource_count;
+		}    
+	}
   }
   consult_next_holder(){ // don't call me when holders.length = 0
     let flan=this.holders.shift();
@@ -780,43 +796,6 @@ class Tree extends Giver{
   }
 }
 
-class House {
-  constructor(tile,direction, decorator = ""){
-    this.tile = tile;
-    this.direction = direction;
-    this.decorator = decorator;
-    this.flan = new Flan(this.tile,direction);
-    this.flan.decorator = decorator;
-    this.tile.board.houses.push(this);
-    this.tile.house = this;
-  }
-  get appearance(){
-    return "H"+this.decorator+ARROWS[this.direction];
-  }
-  recall_flan(){
-    this.flan.move_to(this.tile.x,this.tile.y,this.direction);
-    this.flan.holding=false;
-    this.flan.interacted=false;
-    this.flan.gave_to=false;
-    this.flan.took_from=false;
-    this.tile.board.is_changed = true;
-  }
-  deconstruct(){
-    this.flan.deconstruct();
-    this.tile.board.remove_house(this);
-    this.tile.house=false;
-  }
-  rotate(times = 1){
-    for (var i=0; i<times; i++){
-      this.direction = {"N":"E",
-                        "E":"S",
-                        "S":"W",
-                        "W":"N"}[this.direction];
-    }
-    this.recall_flan();
-  }
-}
-
 class Game_window {
   constructor(board) {
     this.board=board;
@@ -903,7 +882,7 @@ class Game_window {
     this.shift.y += this.shift_speed.y;
   }
   my_click(event){
-    var tile = this.tile_of(event.offsetX,event.offsetY);
+    var tile = this.tileAtClick(event.offsetX,event.offsetY);
     tile.on_click();
   }
   draw_floor_at(x,y){ // feed this grid coordinates, not canvas coordinates.
@@ -914,9 +893,7 @@ class Game_window {
                            this.tile_size*Math.sqrt(0.5));
   }
   draw_road_at(x,y){
-    var tile_x = mod(x,this.board.width);
-    var tile_y = mod(y,this.board.height);
-    if (this.board.axes[tile_x][tile_y].floor === '') return;
+    if (this.board.tileAt(x,y).floor === '') return;
     this.context.drawImage(document.getElementById("road"),
                            this.skewed_position_x(x,y)-this.tile_size*Math.sqrt(0.5),
                            this.skewed_position_y(x,y),
@@ -940,13 +917,11 @@ class Game_window {
                y:( newx-newy )/2+1}; // I don't know why this 1 belongs here.
     return obj;
   }
-  tile_of(x,y){
+  tileAtClick(x,y){ //feed me mouse coordinates
     var reduced_coords = this.skewed_position_inverse(x,y);
     reduced_coords.x = Math.floor(reduced_coords.x);
     reduced_coords.y = Math.floor(reduced_coords.y);
-    reduced_coords.x = mod(reduced_coords.x,this.board.width);
-    reduced_coords.y = mod(reduced_coords.y,this.board.height);
-    return this.board.axes[reduced_coords.x][reduced_coords.y];
+    return this.board.tileAt(reduced_coords.x,reduced_coords.y);
   }
   clear(){
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -1106,9 +1081,7 @@ class Game_window {
     ctx.restore();    
   }
   draw_flans_at(x,y,fraction = 1){
-    var board_x = mod(x,this.board.width);
-    var board_y = mod(y,this.board.height);
-    var tile = this.board.axes[board_x][board_y];
+    var tile = this.board.tileAt(x,y);
     for(let flan of tile.flans){
       this.draw_flan_at(flan,x,y,fraction);
     }
@@ -1116,7 +1089,7 @@ class Game_window {
   draw_house_at(x,y){
     var board_x = mod(x, this.board.width);
     var board_y = mod(y, this.board.height);
-    var house = this.board.axes[board_x][board_y].house;
+    var house = this.board.tileAt(board_x,board_y).house;
     if (! house) return;
     
     switch(house.direction){
@@ -1143,7 +1116,7 @@ class Game_window {
   draw_interactable_at(x,y,fraction=1){
     let board_x = mod(x, this.board.width);
     let board_y = mod(y, this.board.height);
-    let interactable = this.board.axes[board_x][board_y].interactable;
+    let interactable = this.board.tileAt(board_x,board_y).interactable;
     if (!interactable) return;
     let graphic = document.getElementById("castle");
 
@@ -1223,26 +1196,26 @@ class Game_window {
   }
 }
 
+var b = null;
 $(document).ready(function(){
+  b = new Board(7,6);
 
-  let b = new Board(7,6);
+  b.tileAt(1,4).floor="r";
+  b.tileAt(2,1).floor="r";
+  b.tileAt(2,2).floor="r";
+  b.tileAt(2,4).floor="r";
+  b.tileAt(3,1).floor="r";
+  b.tileAt(3,2).floor="r";
+  b.tileAt(3,3).floor="r";
+  b.tileAt(3,4).floor="r";
+  var h1 = new House(b.tileAt(0,4),"E","1"),
+	h2 = new House(b.tileAt(1,5),"S","2"),
+	h3 = new House(b.tileAt(1,3),"N","3"),
+	h4 = new House(b.tileAt(2,3),"N","4");
 
-  b.axes[1][4].floor="r";
-  b.axes[2][1].floor="r";
-  b.axes[2][2].floor="r";
-  b.axes[2][4].floor="r";
-  b.axes[3][1].floor="r";
-  b.axes[3][2].floor="r";
-  b.axes[3][3].floor="r";
-  b.axes[3][4].floor="r";
-  let h1 = new House(b.axes[0][4],"E","1"),
-	h2 = new House(b.axes[1][5],"S","2"),
-	h3 = new House(b.axes[1][3],"N","3"),
-	h4 = new House(b.axes[2][3],"N","4");
-
-  b.axes[4][4].tree_toggle();
-  b.axes[1][2].castle_toggle();
-  b.axes[2][0].berry_bush_toggle();
+  b.tileAt(4,4).tree_toggle();
+  b.tileAt(1,2).castle_toggle();
+  b.tileAt(2,0).berry_bush_toggle();
 
   b.render();
   setInterval(function(){
