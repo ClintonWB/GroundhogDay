@@ -192,32 +192,27 @@ class Board{
   constructor(width,height){
     this.width = width;
     this.height = height;
-    this.axes = [...Array(width)].map(e => Array(height).fill(''));
 	this.tiles = [...Array(this.width * this.height)]
 		.map((spot,index) => new Tile(this,mod(index,this.width),Math.floor(index / this.width)));
-    this.flans = [];
     this.is_changed = false; //this variable is used to un-loop and un-stuck all the flan at the appropriate time.
     this.number_of_steps = 0; //this stores the value for the day-length dispay, and is otherwise unused.
-    this.houses = [];
     this.selected_tool = "road_toggle";
     this.window = new Game_window(this);
     this.frame=0;
     this.matchmaker='';
   }
+  get houses(){
+	return this.tiles.map(tile => tile.house).filter(house => house);
+  }
+  get flans(){
+	let array = [];
+	for(let tile of this.tiles){
+		array.push(...tile.flans);
+	}
+	return array;
+  }
   tileAt(x,y){
 	return this.tiles[mod(x,this.width)+this.width*mod(y,this.height)];
-  }
-  remove_flan(flan){
-    var index = this.flans.indexOf(flan);
-    if (index > -1) {
-      this.flans.splice(index,1);
-    };
-  }
-  remove_house(house){
-    var index = this.houses.indexOf(house);
-    if (index > -1) {
-      this.houses.splice(index,1);
-    };
   }
   step(){
     for (let flan of this.flans){
@@ -327,7 +322,6 @@ class Flan{
     this.gave_to = false;
     this.took_from = false;
     //change other variables upon creation
-    tile.board.flans.push(this);
     tile.flans.push(this);
   }
   reset_interact_preferences(){
@@ -343,7 +337,6 @@ class Flan{
   }
   deconstruct(){
     this.tile.remove_flan(this);
-    this.tile.board.remove_flan(this);
   }
   get appearance(){
     var s = $("<span>");
@@ -521,7 +514,6 @@ class Flan{
     this.has_stepped = true;
     return;
   }
-
   direction_of(tile){
     if (this.tile.north === tile){
       return 'N'
@@ -541,12 +533,13 @@ class Flan{
 
 class House {
   constructor(tile,direction, decorator = ""){
+	//my properties
     this.tile = tile;
     this.direction = direction;
     this.decorator = decorator;
     this.flan = new Flan(this.tile,direction);
+	//change other objects
     this.flan.decorator = decorator;
-    this.tile.board.houses.push(this);
     this.tile.house = this;
   }
   get appearance(){
@@ -562,7 +555,6 @@ class House {
   }
   deconstruct(){
     this.flan.deconstruct();
-    this.tile.board.remove_house(this);
     this.tile.house=false;
   }
   rotate(times = 1){
