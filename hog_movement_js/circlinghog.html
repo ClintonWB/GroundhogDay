@@ -381,7 +381,7 @@ class Flan{
       s.addClass("stuck");
     }
     let string=ARROWS[this.direction]+this.decorator;
-    if (this.holding) string += this.holding[0];
+    if (this.holding) string += this.holding.toString();
     s.text(string);
     return s;
   };
@@ -599,6 +599,18 @@ class House {
     }
     this.recall_flan();
   }
+  graphic(){
+	switch(this.direction){
+      case "N":
+        return document.getElementById("hole_up_right");
+      case "E":
+        return document.getElementById("hole_down_right");
+      case "S":
+        return document.getElementById("hole_down_left");
+      case "W":
+        return document.getElementById("hole_up_left");
+    }
+  }
 }
 
 class InteractionQueue{
@@ -730,6 +742,12 @@ class Taker extends Interactable{
   max_interactions(resource_type=false){
     return 100; // a very large number, to simulate infinity.
   }
+  get currentGraphic(){
+	  return this.graphic();
+  }
+  get previousGraphic(){
+	  return this.graphic();
+  }
 }
 
 class Giver extends Interactable{ //make sure to define baseResourceCount and resourceType
@@ -751,6 +769,12 @@ class Giver extends Interactable{ //make sure to define baseResourceCount and re
 	}
 	max_interactions(){
 		return this.resource_count;
+	}
+	get currentGraphic(){
+	  return this.graphic(this.resource_count);
+	}
+	get previousGraphic(){
+	  return this.graphic(this.previous_resource_count);
 	}
 }
 
@@ -776,11 +800,14 @@ class Castle extends Taker{
   get appearance(){
     return 'C';
   }
+  graphic(){
+	  return document.getElementById("castle");
+  }
 }
 
 class Berry_Bush extends Giver{
   resourceType(){
-	return 'berry';
+	return new Resource('berry');
   }
   baseResourceCount(){
 	return 2;
@@ -801,11 +828,21 @@ class Berry_Bush extends Giver{
         console.log(this)
     }
   }
+  graphic(count){
+	switch (count){
+		case 2:
+		  return document.getElementById("berry_bush_2");
+		case 1:
+		  return document.getElementById("berry_bush_1");
+		default:
+		  return document.getElementById("berry_bush_0");          
+	}
+  }
 }
 
 class Tree extends Giver{
   resourceType(){
-	return 'wood';
+	return new Resource("wood");
   }
   baseResourceCount(){
 	return 1;
@@ -817,6 +854,31 @@ class Tree extends Giver{
       return 't';
     }
   }
+  graphic(count){
+	switch (count){
+		case 1:
+		  return document.getElementById("tree_1");
+		default:
+		  return document.getElementById("tree_0");          
+	}
+  }
+}
+
+class Resource{
+	constructor(name){
+		this.name = name;
+	}
+	get graphic(){
+		switch(this.name){
+			case "berry":
+			  return document.getElementById("berry");
+			case "wood":
+			  return document.getElementById("wood");
+		}
+	}
+	toString(){
+		return this.name;
+	}
 }
 
 class Game_window {
@@ -832,6 +894,12 @@ class Game_window {
     this.canvas.addEventListener("keyup",this.my_key_up.bind(this));
     this.shift_speed = {x:0, y:0};
     this.keys = {up:false, down:false, left:false, right:false};
+  }
+  get tileWidth(){
+	  return this.tile_size*Math.SQRT2;
+  }
+  get tileHeight(){
+	  return this.tile_size*Math.SQRT1_2;
   }
   my_key_down(event){
     var key = event.key;
@@ -908,20 +976,19 @@ class Game_window {
     var tile = this.tileAtClick(event.offsetX,event.offsetY);
     tile.on_click();
   }
-  draw_floor_at(x,y){ // feed this grid coordinates, not canvas coordinates.
-    this.context.drawImage(document.getElementById("grass"),
-                           this.skewed_position_x(x,y)-this.tile_size*Math.sqrt(0.5),
+  drawAt(graphic,x,y){
+	this.context.drawImage(graphic,
+                           this.skewed_position_x(x,y)-(this.tileWidth/2),
                            this.skewed_position_y(x,y),
-                           this.tile_size*Math.sqrt(2),
-                           this.tile_size*Math.sqrt(0.5));
+                           this.tileWidth,
+                           this.tileHeight);
+  }
+  draw_floor_at(x,y){
+	this.drawAt(document.getElementById("grass"),x,y);
   }
   draw_road_at(x,y){
     if (this.board.tileAt(x,y).floor === '') return;
-    this.context.drawImage(document.getElementById("road"),
-                           this.skewed_position_x(x,y)-this.tile_size*Math.sqrt(0.5),
-                           this.skewed_position_y(x,y),
-                           this.tile_size*Math.sqrt(2),
-                           this.tile_size*Math.sqrt(0.5));
+    this.drawAt(document.getElementById("road"),x,y);
   }
   skewed_position_x(x,y){
     return (this.shift.x)+( (this.tile_size * Math.sqrt(0.5))*(x+y+1-this.board.height) );
@@ -1003,28 +1070,8 @@ class Game_window {
     }    
     ctx.drawImage(hogimg,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
     
-    let prev_item = '';
-    let item = '';
-    if(flan.previous_holding){
-      switch(flan.previous_holding){
-        case "berry":
-          prev_item = document.getElementById("berry");
-          break;
-        case "wood":
-          prev_item = document.getElementById("wood");
-          break;
-      }
-    }
-    if(flan.holding){
-      switch(flan.holding){
-        case "berry":
-          item = document.getElementById("berry");
-          break;
-        case "wood":
-          item = document.getElementById("wood");
-          break;        
-      }
-    }
+    let prev_item = flan.previous_holding.graphic;
+    let item = flan.holding.graphic;
 
     if(fraction<=1 && flan.previous_holding){
       ctx.drawImage(prev_item,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
@@ -1110,81 +1157,24 @@ class Game_window {
     }
   }
   draw_house_at(x,y){
-    var board_x = mod(x, this.board.width);
-    var board_y = mod(y, this.board.height);
-    var house = this.board.tileAt(board_x,board_y).house;
+    var house = this.board.tileAt(x,y).house;
     if (! house) return;
-    
-    switch(house.direction){
-      case "N":
-        var hole = document.getElementById("hole_up_right");
-        break;
-      case "E":
-        var hole = document.getElementById("hole_down_right");
-        break;
-      case "S":
-        var hole = document.getElementById("hole_down_left");
-        break;
-      case "W":
-        var hole = document.getElementById("hole_up_left");
-        break;
-    }
-
-    this.context.drawImage(hole,
-                           this.skewed_position_x(x,y)-this.tile_size*Math.sqrt(0.5),
-                           this.skewed_position_y(x,y),
-                           this.tile_size*Math.sqrt(2),
-                           this.tile_size*Math.sqrt(0.5));
+	
+	this.drawAt(house.graphic(),x,y);
   }
   draw_interactable_at(x,y,fraction=1){
-    let board_x = mod(x, this.board.width);
-    let board_y = mod(y, this.board.height);
-    let interactable = this.board.tileAt(board_x,board_y).interactable;
+	let tile = this.board.tileAt(x,y);
+    let interactable = tile.interactable;
     if (!interactable) return;
-    let graphic = document.getElementById("castle");
-
-    if (interactable instanceof Castle){
-      graphic = document.getElementById("castle");
-    } else if ( interactable instanceof Berry_Bush){
-      let count = '';
-      if(fraction<=1){
-        count = interactable.previous_resource_count;
-      } else {
-        count = interactable.resource_count;
-      }
-      switch (count){
-        case 2:
-          graphic = document.getElementById("berry_bush_2");
-          break;
-        case 1:
-          graphic = document.getElementById("berry_bush_1");
-          break;
-        default:
-          graphic = document.getElementById("berry_bush_0");
-          break;          
-      }
-    } else if ( interactable instanceof Tree){
-      let count = '';
-      if(fraction<=1){
-        count = interactable.previous_resource_count;
-      } else {
-        count = interactable.resource_count;
-      }
-      switch (count){
-        case 1:
-          graphic = document.getElementById("tree_1");
-          break;
-        default:
-          graphic = document.getElementById("tree_0");
-          break;          
-      }
-    }
-
-    this.context.drawImage(graphic,
-                           this.skewed_position_x(x,y)-this.tile_size*Math.sqrt(0.5),
-                           this.skewed_position_y(x,y),
-                           this.tile_size*Math.sqrt(2),
-                           this.tile_size*Math.sqrt(0.5));
+	
+	let graphic = null;
+	if (fraction <=1){
+		graphic = interactable.previousGraphic;
+	} else {
+		graphic = interactable.currentGraphic;
+	}
+	
+    this.drawAt(graphic,x,y)
   }
   hop_path(start,end,fraction){//feed this objects with x and y
     var jumpheight = 60;
