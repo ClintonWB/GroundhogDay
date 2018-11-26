@@ -186,6 +186,16 @@ class Tile{
   get west(){
     return this.board.tileAt(this.x-1,this.y);
   }
+  neighborsFromMatrix(matrix,me){//me is the position [column, row] of this tile in the matrix
+    return this.board.tilesFromMatrix(matrix, [this.x - me[0], this.y + me[1]]);
+  }
+  hasFlanAdjacent(flan){
+    let flanList=[];
+    for(let direction of ["N","S","E","W"]){
+      flanList = flanList.concat(this.to_my(direction).flans);
+    }
+    return flanList.includes(flan);
+  }
 }
 
 class Board{
@@ -199,7 +209,6 @@ class Board{
     this.selected_tool = "road_toggle";
     this.window = new Game_window(this);
     this.frame=0;
-    this.matchmaker='';
   }
   get houses(){
 	return this.tiles.map(tile => tile.house).filter(house => house);
@@ -230,9 +239,11 @@ class Board{
     for (let flan of this.flans){
       flan.step();
     };
-    this.matchmaker = new Matchmaker(this)
-    this.matchmaker.match();
-    this.number_of_steps ++;
+    
+	let matchmaker = new Matchmaker(this)
+    matchmaker.match();
+    
+	this.number_of_steps ++;
   }
   recall_flan(){
     for (let house of this.houses){
@@ -300,6 +311,28 @@ class Board{
 		tile.render_update();
 	  }
     }
+  }
+  tilesFromMatrix(matrix, corner){
+    //input format:
+    //(
+    //[
+    // [ ,0,1, ],
+    // [2, , ,3],
+    // [4, , ,5],
+    // [ ,6,7, ]
+    //],
+    //[2,3]  //upper left corner
+    //)
+    let tiles = [];
+    for(let j=0; j<matrix.length; ++j){
+      for(let i=0; i<matrix[j].length; ++i){
+        let entry = matrix[j][i];
+        if(Number.isInteger(entry) && (entry > -1)){
+          tiles[entry] = this.tileAt(corner[0]+i,corner[1]-j);
+        }
+      }
+    }
+    return tiles;
   }
 }
 
@@ -568,10 +601,9 @@ class House {
   }
 }
 
-class Interaction_Queue{
-  constructor(board){
-    this.board = board;
-    this.pairs = [];
+class InteractionQueue{
+  constructor(){
+    this.pairs = [];//[[flan,interactable],...]
   }
   flans_of(interactable){
     let pair_list = this.pairs.filter(pair => pair[1] === interactable);
@@ -599,10 +631,6 @@ class Matchmaker{
   constructor(board){
     this.board = board;
     this.flans = this.board.flans.filter(flan => flan.hopped_from);
-    this.holders = [];
-    this.seekers = [];
-    this.holder_queue = new Interaction_Queue(board);
-    this.seeker_queue = new Interaction_Queue(board);
     for(let flan of this.board.flans){
       flan.previous_holding = flan.holding;
       flan.interacted = false;
@@ -616,90 +644,73 @@ class Matchmaker{
 		}    
 	}
   }
-  consult_next_holder(){ // don't call me when holders.length = 0
-    let flan=this.holders.shift();
+  consult_next(flans, type, queue){ // don't call me when flans.length = 0
+    let flan=flans.shift();
     if (flan.interact_preferences.length === 0) return;
     let target = flan.interact_preferences.shift();
-    if (!target || target instanceof Giver) {
-      this.holders.push(flan);
+    if (!(target instanceof type)) {
+      flans.push(flan);
       return;
     }
-    let competer = target.prefers(flan,this.holder_queue)
-    if (competer){
-      if (!(competer instanceof Flan)){ //the way is clear. No competition!
-        this.holder_queue.add_pair(flan, target);
-      } else { // we can usurp
-        this.holder_queue.remove_pair(competer,target);
-        this.holders.push(competer);
-        this.holder_queue.add_pair(flan,target);
-      }
-    } else { // we are not wanted here.
-      this.holders.push(flan);
-    }
-    return;
-  }
-  consult_next_seeker(){ // don't call me when seekers.length = 0
-    let flan=this.seekers.shift();
-    if (flan.interact_preferences.length === 0) return;
-    let target = flan.interact_preferences.shift();
-    if (!target || target instanceof Taker) {
-      this.seekers.push(flan);
-      return;
-    }
-    let competer = target.prefers(flan,this.seeker_queue)
-    if (competer){
-      if (!(competer instanceof Flan)){ //the way is clear. No competition!
-        this.seeker_queue.add_pair(flan, target);
-      } else { // we can usurp
-        this.seeker_queue.remove_pair(competer,target);
-        this.seekers.push(competer);
-        this.seeker_queue.add_pair(flan,target);
-      }
-    } else { // we are not wanted here.
-      this.seekers.push(flan);
-    }
+    let preferred = target.prefers(flan,queue);
+	if (!preferred){
+		flans.push(flan);
+	} else {
+		queue.add_pair(flan, target);
+		if(preferred instanceof Flan){
+			flans.push(preferred);
+			queue.remove_pair(preferred,target);
+		}
+	}
     return;
   }
   match(){
-    this.holders = this.flans.filter(flan => flan.holding);
-    while(this.holders.length > 0 ){
-      this.consult_next_holder();
-    }
-    this.holder_queue.resolve();
+	let holderQueue = new InteractionQueue(),
+		seekerQueue = new InteractionQueue();
+	
+	let holders = this.flans.filter(flan => flan.holding);
+    while(holders.length > 0 ){
+      this.consult_next(holders, Taker, holderQueue);
+	}
+    holderQueue.resolve();
+	
     for (let flan of this.flans){
       flan.reset_interact_preferences();
     }
-    this.seekers = this.flans.filter(flan => !flan.holding);
-    while(this.seekers.length > 0 ){
-      this.consult_next_seeker();
+	
+    let seekers = this.flans.filter(flan => !flan.holding);
+    while(seekers.length > 0 ){
+      this.consult_next(seekers, Giver, seekerQueue);
     }
-    this.seeker_queue.resolve();
+    seekerQueue.resolve();
+	
+	return [holderQueue, seekerQueue];
   }
 }
 
-class Interactable{
+class Interactable{ //this should only be created as a Giver or a Taker.
   constructor(tile){
-    this.tile = tile;
-    this.tile.interactable = this;
+    this.tiles = [tile];
+    this.tiles[0].interactable = this;
     this.tile_preferences = [
-      this.tile.east,
-      this.tile.south,
-      this.tile.west,
-      this.tile.north
+      this.tiles[0].east,
+      this.tiles[0].south,
+      this.tiles[0].west,
+      this.tiles[0].north
     ];
   }
   deconstruct(){
-    this.tile.interactable = false;
+    this.tiles.forEach(tile => tile.interactable = false);
   }
   prefers(flan,queue){
     let my_flans = queue.flans_of(this);
-    if (my_flans.length < this.max_interactions()) return true;
+    if (my_flans.length < this.max_interactions()) return true; //indicates that there was no competition
     for (let competing_flan of my_flans){
       if (this.tile_preferences.indexOf(flan.tile) < this.tile_preferences.indexOf(competing_flan.tile)){
         return competing_flan;
       }
     }
-    return false;
+    return false; //indicates that given flan is not preferred
   }
 }
 
@@ -709,49 +720,70 @@ class Taker extends Interactable{
     this.holding = [];
   }
   interact_with(flan){
-    this.take_from(flan)
+    this.take_from(flan);
   }
   take_from(flan){
     this.holding.push(flan.holding);
     flan.holding = false;
-    flan.gave_to = this;
+    flan.gave_to = this.tiles.find(tile => tile.hasFlanAdjacent(flan));
   }
   max_interactions(resource_type=false){
     return 100; // a very large number, to simulate infinity.
   }
 }
 
-class Giver extends Interactable{
-  interact_with(flan){
-    this.give_to(flan)
-  }
-  replenish(){
-    this.resource_count = this.base_resource_count;
-    this.previous_resource_count = this.base_resource_count;
-  }
-  give_to(flan){
-    flan.holding = this.resource_type;
-    flan.took_from = this;
-    this.resource_count--;
-  }
-  max_interactions(resource_type=false){
-    return this.resource_count;
-  }
+class Giver extends Interactable{ //make sure to define baseResourceCount and resourceType
+	constructor(tile){
+		super(tile);
+		this.replenish();
+	}
+	replenish(){
+		this.resource_count = this.baseResourceCount();  // new variables are defined here.
+		this.previous_resource_count = this.baseResourceCount();
+	}
+	interact_with(flan){
+		this.give_to(flan);
+	}
+	give_to(flan,tile){
+		flan.holding = this.resourceType();
+		flan.took_from = this.tiles.find(tile => tile.hasFlanAdjacent(flan));
+		this.resource_count--;
+	}
+	max_interactions(){
+		return this.resource_count;
+	}
 }
 
 class Castle extends Taker{
+  constructor(corner){ //upper left corner tile
+    super(corner);
+    this.tiles = corner.neighborsFromMatrix(
+      [ [0,1,2],
+        [3,4,5],
+        [6,7,8] ],
+      [0,0] 
+     );
+     this.tiles.forEach(tile => tile.interactable = this);
+     this.tile_preferences = corner.neighborsFromMatrix(
+      [ [ , 0, 1, 2, ],
+        [3,  ,  ,  ,4],
+        [5,  ,  ,  ,6],
+        [7,  ,  ,  ,8],
+        [ , 9,10,11, ] ],
+      [1,1]
+     );
+  }
   get appearance(){
     return 'C';
   }
 }
 
 class Berry_Bush extends Giver{
-  constructor(tile){
-    super(tile);
-    this.base_resource_count = 2;
-    this.resource_type = 'berry';
-    
-    this.replenish();
+  resourceType(){
+	return 'berry';
+  }
+  baseResourceCount(){
+	return 2;
   }
   get appearance(){
     switch(this.resource_count){
@@ -772,12 +804,11 @@ class Berry_Bush extends Giver{
 }
 
 class Tree extends Giver{
-  constructor(tile){
-    super(tile);
-    this.base_resource_count = 1;
-    this.resource_type = 'wood';
-
-    this.replenish();
+  resourceType(){
+	return 'wood';
+  }
+  baseResourceCount(){
+	return 1;
   }
   get appearance(){
     if (this.resource_count === 1){
@@ -1011,7 +1042,7 @@ class Game_window {
         x : from.x,
         y : from.y
       }
-      switch(flan.direction_of(flan.gave_to.tile)){
+      switch(flan.direction_of(flan.gave_to)){
         case 'N':
           to.x += this.tile_size*Math.sqrt(0.5);
           to.y -= this.tile_size*Math.sqrt(0.125);
@@ -1029,7 +1060,7 @@ class Game_window {
           to.y -= this.tile_size*Math.sqrt(0.125);
           break;
         default:
-          console.log('What? Error!')
+          console.log('What? Error!');
       }
       let item_coords = this.hop_path(from,to,fraction-1);
       ctx.drawImage(prev_item,- this.tile_size*0.4+item_coords.x,-this.tile_size*0.2+item_coords.y,this.tile_size*0.8,this.tile_size*0.8);
@@ -1043,7 +1074,7 @@ class Game_window {
         x : from.x,
         y : from.y
       }
-      switch(flan.direction_of(flan.took_from.tile)){
+      switch(flan.direction_of(flan.took_from)){
         case 'N':
           to.x += this.tile_size*Math.sqrt(0.5);
           to.y -= this.tile_size*Math.sqrt(0.125);
@@ -1206,7 +1237,7 @@ $(document).ready(function(){
 	h4 = new House(b.tileAt(2,3),"N","4");
 
   b.tileAt(4,4).tree_toggle();
-  b.tileAt(1,2).castle_toggle();
+  b.tileAt(-1,2).castle_toggle();
   b.tileAt(2,0).berry_bush_toggle();
 
   b.render();
