@@ -101,26 +101,12 @@ class Tile{
       new House(this,"N");
     }
   }
-  tree_toggle(){
-    if(this.interactable instanceof Tree){
-      this.interactable.deconstruct();
-    } else {
-      this.interactable = new Tree(this);
-    }
-  }
-  castle_toggle(){
-    if(this.interactable instanceof Castle){
-      this.interactable.deconstruct();
-    } else {
-      this.interactable = new Castle(this);
-    }
-  }
-  berry_bush_toggle(){
-    if(this.interactable instanceof Berry_Bush){
-      this.interactable.deconstruct();
-    } else {
-      this.interactable = new Berry_Bush(this);
-    }
+  interact_toggle(type){
+	  if(this.interactable instanceof type){
+		  this.interactable.deconstruct();
+	  } else {
+		  this.interactable = new type(this);
+	  }
   }
   on_click(){
     switch (this.board.selected_tool){
@@ -134,13 +120,13 @@ class Tile{
         this.house_toggle();
         break;
       case "tree_toggle":
-        this.tree_toggle();
+        this.interact_toggle(Tree);
         break;
       case "castle_toggle":
-        this.castle_toggle();
+        this.interact_toggle(Castle);
         break;
       case "berry_bush_toggle":
-        this.berry_bush_toggle();
+        this.interact_toggle(Berry_Bush);
         break;
       default:
         throw "no such tool as "+this.board.selected_tool;
@@ -351,7 +337,6 @@ class Flan{
     this.interact_preferences = [];
     this.holding = false;
     this.previous_holding = false;
-    this.interacted = false;
     this.gave_to = false;
     this.took_from = false;
     //change other variables upon creation
@@ -562,6 +547,18 @@ class Flan{
       console.log(tile)
     }
   }
+  get graphic(){
+	switch(this.direction){
+      case "N":
+        return document.getElementById("up_right_hog");
+      case "E":
+        return document.getElementById("down_right_hog");
+      case "S":
+        return document.getElementById("down_left_hog");
+      case "W":
+        return document.getElementById("up_left_hog");
+    }    
+  }
 }
 
 class House {
@@ -581,7 +578,6 @@ class House {
   recall_flan(){
     this.flan.move_to(this.tile,this.direction);
     this.flan.holding=false;
-    this.flan.interacted=false;
     this.flan.gave_to=false;
     this.flan.took_from=false;
     this.tile.board.is_changed = true;
@@ -634,7 +630,6 @@ class InteractionQueue{
   resolve(){
     for(let pair of this.pairs){
       pair[1].interact_with(pair[0]);
-      pair[0].interacted = true;
     }
   }
 }
@@ -642,10 +637,8 @@ class InteractionQueue{
 class Matchmaker{
   constructor(board){
     this.board = board;
-    this.flans = this.board.flans.filter(flan => flan.hopped_from);
     for(let flan of this.board.flans){
       flan.previous_holding = flan.holding;
-      flan.interacted = false;
       flan.gave_to = false;
       flan.took_from = false;
       flan.reset_interact_preferences();
@@ -680,17 +673,19 @@ class Matchmaker{
 	let holderQueue = new InteractionQueue(),
 		seekerQueue = new InteractionQueue();
 	
-	let holders = this.flans.filter(flan => flan.holding);
+	let activeFlans = this.board.flans.filter(flan => flan.hopped_from);
+	
+	let holders = activeFlans.filter(flan => flan.holding);
     while(holders.length > 0 ){
       this.consult_next(holders, Taker, holderQueue);
 	}
     holderQueue.resolve();
 	
-    for (let flan of this.flans){
+    for (let flan of activeFlans){
       flan.reset_interact_preferences();
     }
 	
-    let seekers = this.flans.filter(flan => !flan.holding);
+    let seekers = activeFlans.filter(flan => !flan.holding);
     while(seekers.length > 0 ){
       this.consult_next(seekers, Giver, seekerQueue);
     }
@@ -864,6 +859,52 @@ class Tree extends Giver{
   }
 }
 
+class Shop{
+	constructor(recipe,tile){
+		this.recipe = recipe; // {input : [ [ingredient, amount], ...], output : [item, amount]}
+		this.corner= tile;
+		this.rotation = "SE"; //in which corner is the output?
+		this.input = new ShopInput(this);
+	}
+	rotate(){
+		this.rotation = {	"NW":"NE",
+							"NE":"SE",
+							"SE":"SW",
+							"SW":"NW"}[this.rotation];
+	}
+}
+
+class ShopInput extends Taker{
+	constructor(shop){
+		super(this.tiles[0]);
+		this.shop = shop;
+	}
+	get tiles(){
+		let mymatrix = ''
+		switch(this.shop.direction){
+			case "NW":
+				mymatrix = [ [ ,0],
+							 [1,2] ];
+				break;
+			case "NE":
+				mymatrix = [ [0, ],
+							 [1,2] ];
+				break;
+			case "SE":
+				mymatrix = [ [0,1],
+							 [2, ] ];
+				break;
+			case "SW":
+				mymatrix = [ [0,1],
+							 [ ,2] ];
+				break;
+		}
+		return this.shop.corner.neighborsFromMatrix(mymatrix,[0,0]);
+	}
+}
+
+let BREAD_RECIPE = {input : [["berry",2]], output : ["bread",1]};
+
 class Resource{
 	constructor(name){
 		this.name = name;
@@ -887,7 +928,7 @@ class Game_window {
     this.canvas = document.getElementById("myCanvas");
     this.context = this.canvas.getContext("2d");
     this.tile_size = 60;
-    this.shift = {x:this.tile_size * this.board.height * Math.sqrt(0.5),
+    this.shift = {x:this.tile_size * this.board.height * Math.SQRT1_2,
                   y:20};
     this.canvas.addEventListener("click",this.my_click.bind(this));
     this.canvas.addEventListener("keydown",this.my_key_down.bind(this));
@@ -1054,32 +1095,17 @@ class Game_window {
     }
 
     ctx.translate(current_coords.x,current_coords.y);
-    switch(flan.direction){
-      case "N":
-        var hogimg = document.getElementById("up_right_hog");
-        break;
-      case "E":
-        var hogimg = document.getElementById("down_right_hog");
-        break;
-      case "S":
-        var hogimg = document.getElementById("down_left_hog");
-        break;
-      case "W":
-        var hogimg = document.getElementById("up_left_hog");
-        break;
-    }    
-    ctx.drawImage(hogimg,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
-    
-    let prev_item = flan.previous_holding.graphic;
-    let item = flan.holding.graphic;
-
+	
+	//draw self
+	this.drawHere(flan,ctx);
+	
+	//draw any items we are moving
     if(fraction<=1 && flan.previous_holding){
-      ctx.drawImage(prev_item,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
+		this.drawHere(flan.previous_holding,ctx);
     }
-    if(2>fraction && fraction>1 && flan.holding && !(flan.interacted)){
-      ctx.drawImage(item,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
-    }
-    
+    if(2>fraction && fraction>1 && flan.holding && !flan.gave_to && !flan.took_from){
+		this.drawHere(flan.holding,ctx);
+    }    
     if(2>fraction && fraction>1 && flan.gave_to){
       let from = {
         x : 0,
@@ -1110,7 +1136,7 @@ class Game_window {
           console.log('What? Error!');
       }
       let item_coords = this.hop_path(from,to,fraction-1);
-      ctx.drawImage(prev_item,- this.tile_size*0.4+item_coords.x,-this.tile_size*0.2+item_coords.y,this.tile_size*0.8,this.tile_size*0.8);
+      ctx.drawImage(flan.previous_holding.graphic,- this.tile_size*0.4+item_coords.x,-this.tile_size*0.2+item_coords.y,this.tile_size*0.8,this.tile_size*0.8);
     }
     if(2>fraction && fraction>1 && flan.took_from){
       let from = {
@@ -1142,13 +1168,16 @@ class Game_window {
           console.log('What? Error!')
       }
       let item_coords = this.hop_path(to,from,fraction-1);
-      ctx.drawImage(item,- this.tile_size*0.4+item_coords.x,-this.tile_size*0.2+item_coords.y,this.tile_size*0.8,this.tile_size*0.8);
+      ctx.drawImage(flan.holding.graphic,- this.tile_size*0.4+item_coords.x,-this.tile_size*0.2+item_coords.y,this.tile_size*0.8,this.tile_size*0.8);
     }
     if(fraction>=2 && flan.holding ){
-      ctx.drawImage(item,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
+		this.drawHere(flan.holding,ctx);
     }
 
     ctx.restore();    
+  }
+  drawHere(item,context){//called by draw_flan_at
+	context.drawImage(item.graphic,- this.tile_size*0.4,-this.tile_size*0.2,this.tile_size*0.8,this.tile_size*0.8);
   }
   draw_flans_at(x,y,fraction = 1){
     var tile = this.board.tileAt(x,y);
@@ -1226,9 +1255,9 @@ $(document).ready(function(){
 	h3 = new House(b.tileAt(1,3),"N","3"),
 	h4 = new House(b.tileAt(2,3),"N","4");
 
-  b.tileAt(4,4).tree_toggle();
-  b.tileAt(-1,2).castle_toggle();
-  b.tileAt(2,0).berry_bush_toggle();
+  b.tileAt(4,4).interact_toggle(Tree);
+  b.tileAt(-1,2).interact_toggle(Castle);
+  b.tileAt(2,0).interact_toggle(Berry_Bush);
 
   b.render();
   setInterval(function(){
