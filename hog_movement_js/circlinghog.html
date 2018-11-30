@@ -719,6 +719,9 @@ class Interactable{ //this should only be created as a Giver or a Taker.
     }
     return false; //indicates that given flan is not preferred
   }
+  spriteData(){
+	  return [];
+  }
 }
 
 class Taker extends Interactable{
@@ -737,10 +740,10 @@ class Taker extends Interactable{
   max_interactions(resource_type=false){
     return 100; // a very large number, to simulate infinity.
   }
-  get currentGraphic(){
+  currentGraphic(){
 	  return this.graphic();
   }
-  get previousGraphic(){
+  previousGraphic(){
 	  return this.graphic();
   }
 }
@@ -765,10 +768,10 @@ class Giver extends Interactable{ //make sure to define baseResourceCount and re
 	max_interactions(){
 		return this.resource_count;
 	}
-	get currentGraphic(){
+	currentGraphic(){
 	  return this.graphic(this.resource_count);
 	}
-	get previousGraphic(){
+	previousGraphic(){
 	  return this.graphic(this.previous_resource_count);
 	}
 }
@@ -797,6 +800,17 @@ class Castle extends Taker{
   }
   graphic(){
 	  return document.getElementById("castle");
+  }
+  spriteData(tile){
+	let graphic = this.graphic(),
+		width = graphic.width / 3,
+		height = graphic.height / 3,
+		x = width,
+		y = 0,
+		index = this.tiles.indexOf(tile);
+	x += (width/2)*(mod(index,3) - Math.floor(index/3));
+	y += (height/2)*(mod(index,3) + Math.floor(index/3));
+	return [x,y,width,height]
   }
 }
 
@@ -1017,8 +1031,10 @@ class Game_window {
     var tile = this.tileAtClick(event.offsetX,event.offsetY);
     tile.on_click();
   }
-  drawAt(graphic,x,y){
+  drawAt(graphic,x,y,spriteData){//spriteData=[start_x,start_y,sprite_width,sprite_height]
+	if(spriteData === undefined) spriteData = [];
 	this.context.drawImage(graphic,
+						   ...spriteData,
                            this.skewed_position_x(x,y)-(this.tileWidth/2),
                            this.skewed_position_y(x,y),
                            this.tileWidth,
@@ -1198,12 +1214,14 @@ class Game_window {
 	
 	let graphic = null;
 	if (fraction <=1){
-		graphic = interactable.previousGraphic;
+		graphic = interactable.previousGraphic();
 	} else {
-		graphic = interactable.currentGraphic;
+		graphic = interactable.currentGraphic();
 	}
 	
-    this.drawAt(graphic,x,y)
+	let spriteData = interactable.spriteData(tile);
+	
+    this.drawAt(graphic,x,y,spriteData);
   }
   hop_path(start,end,fraction){//feed this objects with x and y
     var jumpheight = 60;
