@@ -108,6 +108,13 @@ class Tile{
 		  this.interactable = new type(this);
 	  }
   }
+  shop_toggle(recipe){
+	  if(this.interactable instanceof ShopInput || this.interactable instanceof ShopOutput){
+		  this.interactable.shop.deconstruct();
+	  } else {
+		  new Shop(this, recipe);
+	  }
+  }
   on_click(){
     switch (this.board.selected_tool){
       case "rotate_house":
@@ -206,6 +213,17 @@ class Board{
 	}
 	return array;
   }
+  get shops(){
+	  let shops = [];
+	  for(let tile of this.tiles){
+		  if (tile.interactable instanceof ShopInput || tile.interactable instanceof ShopOutput){
+			  if(!shops.includes(tile.interactable.shop)){
+				  shops.push(tile.interactable.shop);
+			  }
+		  }
+	  }
+	  return shops;
+  }
   tileAt(x,y){
 	return this.tiles[mod(x,this.width)+this.width*mod(y,this.height)];
   }
@@ -228,8 +246,15 @@ class Board{
     
 	let matchmaker = new Matchmaker(this)
     matchmaker.match();
+	
+	this.craft_shops();
     
 	this.number_of_steps ++;
+  }
+  craft_shops(){
+	  for(let shop of this.shops){
+		  shop.craft();
+	  }
   }
   recall_flan(){
     for (let house of this.houses){
@@ -698,7 +723,7 @@ class Matchmaker{
 class Interactable{ //this should only be created as a Giver or a Taker.
   constructor(tile){
     this.tiles = [tile];
-    this.tiles[0].interactable = this;
+    this.tiles.forEach(tile => tile.interactable = this);
     this.tile_preferences = [
       this.tiles[0].east,
       this.tiles[0].south,
@@ -710,8 +735,8 @@ class Interactable{ //this should only be created as a Giver or a Taker.
     this.tiles.forEach(tile => tile.interactable = false);
   }
   prefers(flan,queue){
-    let my_flans = queue.flans_of(this);
-    if (my_flans.length < this.max_interactions()) return true; //indicates that there was no competition
+    let my_flans = queue.flans_of(this).filter(f=> f.holding === flan.holding);
+    if (my_flans.length < this.max_interactions(flan.holding.name)) return true; //indicates that there was no competition
     for (let competing_flan of my_flans){
       if (this.tile_preferences.indexOf(flan.tile) < this.tile_preferences.indexOf(competing_flan.tile)){
         return competing_flan;
@@ -765,7 +790,7 @@ class Giver extends Interactable{ //make sure to define baseResourceCount and re
 		flan.took_from = this.tiles.find(tile => tile.hasFlanAdjacent(flan));
 		this.resource_count--;
 	}
-	max_interactions(){
+	max_interactions(resource_type=false){
 		return this.resource_count;
 	}
 	currentGraphic(){
@@ -779,22 +804,26 @@ class Giver extends Interactable{ //make sure to define baseResourceCount and re
 class Castle extends Taker{
   constructor(corner){ //upper left corner tile
     super(corner);
-    this.tiles = corner.neighborsFromMatrix(
-      [ [0,1,2],
-        [3,4,5],
-        [6,7,8] ],
-      [0,0] 
-     );
-     this.tiles.forEach(tile => tile.interactable = this);
-     this.tile_preferences = corner.neighborsFromMatrix(
+    this.tile_preferences = corner.neighborsFromMatrix(
       [ [ , 0, 1, 2, ],
         [3,  ,  ,  ,4],
         [5,  ,  ,  ,6],
         [7,  ,  ,  ,8],
         [ , 9,10,11, ] ],
       [1,1]
-     );
+    );
   }
+  get tiles(){
+	  return this._tiles;
+  }
+  set tiles(corner_arg){
+	  this._tiles = corner_arg[0].neighborsFromMatrix(
+      [ [0,1,2],
+        [3,4,5],
+        [6,7,8] ],
+      [0,0] 
+     );	  
+  };
   get appearance(){
     return 'C';
   }
@@ -874,50 +903,175 @@ class Tree extends Giver{
 }
 
 class Shop{
-	constructor(recipe,tile){
-		this.recipe = recipe; // {input : [ [ingredient, amount], ...], output : [item, amount]}
-		this.corner= tile;
-		this.rotation = "SE"; //in which corner is the output?
+	constructor(tile,recipe){
+		this.recipe = recipe; // {input : [ [ingredient, amount], ...], output : [product, amount]}
+		this.corner = tile;
+		this.rotation = "SW"; //in which corner is the output?
+		this.tiles = this.corner.neighborsFromMatrix(
+		  [ [0,1],
+			[2,3] ],
+		  [0,0] 
+		);
 		this.input = new ShopInput(this);
+		this.output = new ShopOutput(this);
 	}
-	rotate(){
+	rotate(){//TODO: figure out why the rotation does nothing.
 		this.rotation = {	"NW":"NE",
 							"NE":"SE",
 							"SE":"SW",
 							"SW":"NW"}[this.rotation];
+		for(let tile of this.input.tiles){
+			tile.interactable = this.input;
+		}
+		for(let tile of this.output.tiles){
+			tile.interactable = this.output;
+		}
+	}
+	graphic(){
+		return document.getElementById("castle");//TODO: give this real graphics
+	}
+	spriteData(tile){
+		let graphic = this.graphic(),
+			width = graphic.width / 2,
+			height = graphic.height / 2,
+			x = width/2,
+			y = 0,
+			index = this.tiles.indexOf(tile);
+		x += (width/2)*(mod(index,2) - Math.floor(index/2));
+		y += (height/2)*(mod(index,2) + Math.floor(index/2));
+		return [x,y,width,height];
+	}
+	recipeRequires(ingredient_name){
+		return this.recipe.input.find(pair => pair[0]===ingredient_name);
+	}
+	craft(){
+		for(let part of this.recipe.input){
+			if(part[1] > this.input.numberHeld(part[0])) return;
+		}
+		this.input.craft();
+		this.output.craft();
+	}
+	deconstruct(){
+		for(let tile of this.tiles){
+			tile.interactable = false;
+		}
 	}
 }
 
 class ShopInput extends Taker{
 	constructor(shop){
-		super(this.tiles[0]);
+		super(shop.corner);
 		this.shop = shop;
+		this.tiles.forEach(tile => tile.interactable = this);
 	}
 	get tiles(){
-		let mymatrix = ''
-		switch(this.shop.direction){
-			case "NW":
-				mymatrix = [ [ ,0],
-							 [1,2] ];
-				break;
-			case "NE":
-				mymatrix = [ [0, ],
-							 [1,2] ];
-				break;
-			case "SE":
-				mymatrix = [ [0,1],
-							 [2, ] ];
-				break;
-			case "SW":
-				mymatrix = [ [0,1],
-							 [ ,2] ];
-				break;
+		if(this.shop === undefined) return [{interactable:null}];//needed for bootstrapping
+		
+		let mymatrix = [ [ ,0],
+						 [1,2] ];
+		for(let i=0; i< ["NW","NE","SE","SW"].indexOf(this.shop.direction); ++i){
+			mymatrix=rotateMatrix(mymatrix);
 		}
 		return this.shop.corner.neighborsFromMatrix(mymatrix,[0,0]);
 	}
+	set tiles(arg){return};
+	get tile_preferences(){
+		let mymatrix = [ [ , ,0, ],
+						 [ , , ,1],
+						 [5, , ,2],
+						 [ ,4,3, ] ];
+		for(let i=0; i< ["NW","NE","SE","SW"].indexOf(this.shop.direction); ++i){
+			mymatrix=rotateMatrix(mymatrix);
+		}
+		return this.shop.corner.neighborsFromMatrix(mymatrix,[1,1]);
+	}
+	set tile_preferences(arg){return};
+	spriteData(tile){return this.shop.spriteData(tile)};
+	graphic(){return this.shop.graphic()};
+	rotate(){this.shop.rotate()};
+	get appearance(){
+		return 'Si'+this.holding.length;
+	}
+	max_interactions(resource_type){
+		let recipePart = this.shop.recipeRequires(resource_type);
+		if(!recipePart) return 0;
+		return recipePart[1] - this.numberHeld(resource_type);
+	}
+	numberHeld(resource_type){
+		return this.holding.filter(ing => ing.name === resource_type).length;
+	}
+	craft(){
+		for(let part of this.shop.recipe.input){
+			for(let i=0; i< part[1]; ++i){
+				this.removeHeld(part[0]);
+			}
+		}
+	}
+	removeHeld(resource_name){
+		this.holding.splice(this.holding.findIndex(e=> e.name === resource_name), 1);
+	}
+	deconstruct(){this.shop.deconstruct()};
+}
+class ShopOutput extends Giver{
+	constructor(shop){
+		super(shop.corner);
+		this.shop = shop;
+		this.tiles.forEach(tile => tile.interactable = this);
+	}
+	get tiles(){
+		if(this.shop === undefined) return [{interactable:null}];//needed for bootstrapping
+		
+		let mymatrix = [ [0, ],
+						 [ , ] ];
+		for(let i=0; i< ["NW","NE","SE","SW"].indexOf(this.shop.direction); ++i){
+			mymatrix=rotateMatrix(mymatrix);
+		}
+		return this.shop.corner.neighborsFromMatrix(mymatrix,[0,0]);
+	}
+	set tiles(arg){return};
+	get tile_preferences(){
+		let mymatrix = [ [ ,0, , ],
+						 [1, , , ],
+						 [ , , , ],
+						 [ , , , ] ];
+		for(let i=0; i< ["NW","NE","SE","SW"].indexOf(this.shop.direction); ++i){
+			mymatrix=rotateMatrix(mymatrix);
+		}
+		return this.shop.corner.neighborsFromMatrix(mymatrix,[1,1]);
+	}
+	set tile_preferences(arg){return};
+	spriteData(tile){return this.shop.spriteData(tile)};
+	graphic(){return this.shop.graphic()};
+	rotate(){this.shop.rotate()};
+	get appearance(){
+		return 'So'+this.resource_count;
+	}
+	baseResourceCount(){return 0};
+	resourceType(){
+		return new Resource(this.shop.recipe.output[0]);
+	}
+	craft(){
+		this.resource_count = this.shop.recipe.output[1];
+	}
+	deconstruct(){this.shop.deconstruct()};
 }
 
-let BREAD_RECIPE = {input : [["berry",2]], output : ["bread",1]};
+function rotateMatrix(matrix){ //rotates a matrix counter-clockwise
+	let output = [];
+	for(let i=0; i<matrix[0].length; ++i){
+		output[i]=[];
+		for(let j=0; j<matrix.length; ++j){
+			output[i][j] = matrix[matrix.length-j-1][i];
+		}
+	}
+	return output;
+}
+
+let RECIPES={
+	bread: {input : [["berry",1]], output : ["bread",1]},
+	perfume: {input : [["berry",1],["wood",1]], output : ["perfume",1]},
+	steak: {input : [["berry",1],["wood",2]], output : ["steak",1]}
+}
 
 class Resource{
 	constructor(name){
@@ -929,6 +1083,8 @@ class Resource{
 			  return document.getElementById("berry");
 			case "wood":
 			  return document.getElementById("wood");
+			default:
+				return document.getElementById("berry");
 		}
 	}
 	toString(){
@@ -1031,8 +1187,7 @@ class Game_window {
     var tile = this.tileAtClick(event.offsetX,event.offsetY);
     tile.on_click();
   }
-  drawAt(graphic,x,y,spriteData){//spriteData=[start_x,start_y,sprite_width,sprite_height]
-	if(spriteData === undefined) spriteData = [];
+  drawAt(graphic,x,y,spriteData = []){//spriteData=[start_x,start_y,sprite_width,sprite_height]
 	this.context.drawImage(graphic,
 						   ...spriteData,
                            this.skewed_position_x(x,y)-(this.tileWidth/2),
@@ -1210,7 +1365,9 @@ class Game_window {
   draw_interactable_at(x,y,fraction=1){
 	let tile = this.board.tileAt(x,y);
     let interactable = tile.interactable;
-    if (!interactable) return;
+    if (!interactable) {return;}
+	
+	
 	
 	let graphic = null;
 	if (fraction <=1){
@@ -1276,6 +1433,8 @@ $(document).ready(function(){
   b.tileAt(4,4).interact_toggle(Tree);
   b.tileAt(-1,2).interact_toggle(Castle);
   b.tileAt(2,0).interact_toggle(Berry_Bush);
+  b.tileAt(2,5).interact_toggle(Berry_Bush);
+  b.tileAt(4,2).shop_toggle(RECIPES["bread"]);
 
   b.render();
   setInterval(function(){
