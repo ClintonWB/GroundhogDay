@@ -210,9 +210,11 @@ class Board{
 		.map((spot,index) => new Tile(this,mod(index,this.width),Math.floor(index / this.width)));
     this.is_changed = false; //this variable is used to un-loop and un-stuck all the flan at the appropriate time.
     this.number_of_steps = 0; //this stores the value for the day-length dispay, and is otherwise unused.
-    this.selected_tool = "road_toggle";
     this.window = new Game_window(this);
     this.frame=0;
+  }
+  get selected_tool(){
+	  return document.getElementById("tools").elements.tool_radio.value;
   }
   get houses(){
 	return this.tiles.map(tile => tile.house).filter(house => house);
@@ -310,12 +312,8 @@ class Board{
     }
     board_container.empty()
     board_container.append(board_table)
-    this.update_tool_display();
     this.update_step_display();
     this.window.draw_visible();
-  }
-  update_tool_display(){
-    $("#selected_tool").empty().append(`The current tool is ${this.selected_tool}.`);
   }
   update_step_display(){
     $("#step_count").empty().append(`This day has gone on for ${this.number_of_steps} steps.`);
@@ -1562,44 +1560,6 @@ $(document).ready(function(){
   },14)
 });
 
-$(document).ready(function(){
-    $("#reset").click(function(){
-        b.reset_day();
-        b.next_frame();
-    });
-    $("#rotate_house").click(function(){
-        b.selected_tool = "rotate_house";
-        b.update_tool_display();
-    });
-    $("#road_toggle").click(function(){
-        b.selected_tool = "road_toggle";
-        b.update_tool_display();
-    });
-    $("#house_toggle").click(function(){
-        b.selected_tool = "house_toggle";
-        b.update_tool_display();
-    });
-    $("#tree_toggle").click(function(){
-        b.selected_tool = "tree_toggle";
-        b.update_tool_display();
-    });
-    $("#castle_toggle").click(function(){
-        b.selected_tool = "castle_toggle";
-        b.update_tool_display();
-    });
-    $("#berry_bush_toggle").click(function(){
-        b.selected_tool = "berry_bush_toggle";
-        b.update_tool_display();
-    });
-    $("#shop_toggle").click(function(){
-        b.selected_tool = "shop_toggle";
-        b.update_tool_display();
-    });
-    $("#shop_rotate").click(function(){
-        b.selected_tool = "shop_rotate";
-        b.update_tool_display();
-    });
-});
 
 </script>
 
@@ -1610,27 +1570,29 @@ $(document).ready(function(){
  This day has gone on for 0 steps.
  </div>
  <div id="reset_button">
-    <button id="reset"> Reset </button>
+    <button id="reset" 
+	onclick="
+		b.reset_day();
+		b.next_frame();
+	"> Reset </button>
  </div>
- <div id="tools">
+ <form id="tools">
  Tools:
- <button id="rotate_house"> Rotate House </button>
- <button id="road_toggle"> Road Toggle </button>
- <button id="house_toggle"> House Toggle </button>
- <button id="tree_toggle"> Tree Toggle </button>
- <button id="castle_toggle"> Castle Toggle </button>
- <button id="berry_bush_toggle"> Berry Bush Toggle </button>
- <button id="shop_toggle"> Shop Toggle </button>
- <button id="shop_rotate"> Shop Rotate </button>
- </div>
+ <input name="tool_radio" type="radio" value="rotate_house"> Rotate House </button>
+ <input name="tool_radio" type="radio" value="road_toggle" checked="checked"> Road Toggle </button>
+ <input name="tool_radio" type="radio" value="house_toggle"> House Toggle </button>
+ <input name="tool_radio" type="radio" value="tree_toggle"> Tree Toggle </button>
+ <input name="tool_radio" type="radio" value="castle_toggle"> Castle Toggle </button>
+ <input name="tool_radio" type="radio" value="berry_bush_toggle"> Berry Bush Toggle </button>
+ <input name="tool_radio" type="radio" value="shop_toggle"> Shop Toggle </button>
+ <input name="tool_radio" type="radio" value="shop_rotate"> Shop Rotate </button>
+ </form>
  <form id="recipe_select">
  Recipe input: 
  <input name="recipe_radio" type="radio" value="bread" checked="checked">bread
  <input name="recipe_radio" type="radio" value="perfume">perfume
  <input name="recipe_radio" type="radio" value="steak">steak
  </form>
- <div id="selected_tool">
- </div>
 
  <canvas id="myCanvas" width="600" height="400"
    style="border:1px solid #000000;" tabindex='1'> 
