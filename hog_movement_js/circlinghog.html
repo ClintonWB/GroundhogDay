@@ -93,6 +93,7 @@ class Tile{
     } else {
       this.floor ='';
     }
+	return this;
   }
   house_toggle(){
     if(this.house){
@@ -100,6 +101,7 @@ class Tile{
     } else {
       new House(this,"N");
     }
+	return this;
   }
   interact_toggle(type){
 	  if(this.interactable instanceof type){
@@ -107,6 +109,7 @@ class Tile{
 	  } else {
 		  this.interactable = new type(this);
 	  }
+	  return this;
   }
   shop_toggle(recipe){
 	  if(this.interactable instanceof ShopInput || this.interactable instanceof ShopOutput){
@@ -114,8 +117,10 @@ class Tile{
 	  } else {
 		  new Shop(this, recipe);
 	  }
+	  return this;
   }
   on_click(){
+	this.board.is_changed = true;
     switch (this.board.selected_tool){
       case "rotate_house":
         if(this.house)this.house.rotate();
@@ -135,6 +140,12 @@ class Tile{
       case "berry_bush_toggle":
         this.interact_toggle(Berry_Bush);
         break;
+	  case "shop_toggle":
+		this.shop_toggle(RECIPES[document.getElementById("recipe_select").elements.recipe_radio.value]);
+		break;
+	  case "shop_rotate":
+	    if(this.interactable instanceof ShopInput ||this.interactable instanceof ShopOutput)this.interactable.shop.rotate();
+		break;
       default:
         throw "no such tool as "+this.board.selected_tool;
         break;      
@@ -619,6 +630,7 @@ class House {
                         "W":"N"}[this.direction];
     }
     this.recall_flan();
+	return this;
   }
   graphic(){
 	switch(this.direction){
@@ -671,7 +683,10 @@ class Matchmaker{
 	for(let tile of this.board.tiles){
 		if(tile.interactable instanceof Giver){
 		  tile.interactable.previous_resource_count = tile.interactable.resource_count;
-		}    
+		}
+		if(tile.interactable instanceof Taker){
+		  tile.interactable.previous_holding = tile.interactable.holding;
+		}
 	}
   }
   consult_next(flans, type, queue){ // don't call me when flans.length = 0
@@ -722,6 +737,7 @@ class Matchmaker{
 
 class Interactable{ //this should only be created as a Giver or a Taker.
   constructor(tile){
+	this.corner = tile;
     this.tiles = [tile];
     this.tiles.forEach(tile => tile.interactable = this);
     this.tile_preferences = [
@@ -753,6 +769,7 @@ class Taker extends Interactable{
   constructor(tile){
     super(tile);
     this.holding = [];
+	this.previous_holding = [];
   }
   interact_with(flan){
     this.take_from(flan);
@@ -915,7 +932,7 @@ class Shop{
 		this.input = new ShopInput(this);
 		this.output = new ShopOutput(this);
 	}
-	rotate(){//TODO: figure out why the rotation does nothing.
+	rotate(){
 		this.rotation = {	"NW":"NE",
 							"NE":"SE",
 							"SE":"SW",
@@ -926,9 +943,19 @@ class Shop{
 		for(let tile of this.output.tiles){
 			tile.interactable = this.output;
 		}
+		this.corner.board.is_changed=true;
 	}
 	graphic(){
-		return document.getElementById("castle");//TODO: give this real graphics
+		switch(this.rotation){
+			case "NW":
+				return document.getElementById("shop_nw");
+			case "NE":
+				return document.getElementById("shop_ne");
+			case "SW":
+				return document.getElementById("shop_sw");
+			case "SE":
+				return document.getElementById("shop_se");
+		}
 	}
 	spriteData(tile){
 		let graphic = this.graphic(),
@@ -956,6 +983,18 @@ class Shop{
 			tile.interactable = false;
 		}
 	}
+	get center_offset(){
+		switch(this.rotation){
+			case "NW":
+				return [0,1/2];
+			case "NE":
+				return [-1/2,0];
+			case "SE":
+				return [0,-1/2];
+			case "SW":
+				return [1/2,0];
+		}
+	}
 }
 
 class ShopInput extends Taker{
@@ -964,12 +1003,26 @@ class ShopInput extends Taker{
 		this.shop = shop;
 		this.tiles.forEach(tile => tile.interactable = this);
 	}
+	pic_list(previous = false){//[[resource_name,is_present],...]
+		let array = [];
+		for(let pair of this.shop.recipe.input){
+			let fulfilled = this.numberHeld(pair[0],previous);
+			let unfulfilled = pair[1] - fulfilled;
+			for(let i=0; i<fulfilled; ++i){
+				array.push([pair[0],true]);
+			}
+			for(let i=0; i<unfulfilled; ++i){
+				array.push([pair[0],false]);
+			}
+		}
+		return array;
+	}
 	get tiles(){
 		if(this.shop === undefined) return [{interactable:null}];//needed for bootstrapping
 		
 		let mymatrix = [ [ ,0],
 						 [1,2] ];
-		for(let i=0; i< ["NW","NE","SE","SW"].indexOf(this.shop.direction); ++i){
+		for(let i=0; i< ["NW","NE","SE","SW"].indexOf(this.shop.rotation); ++i){
 			mymatrix=rotateMatrix(mymatrix);
 		}
 		return this.shop.corner.neighborsFromMatrix(mymatrix,[0,0]);
@@ -993,12 +1046,15 @@ class ShopInput extends Taker{
 		return 'Si'+this.holding.length;
 	}
 	max_interactions(resource_type){
+		if (this.shop.output.resource_count > 0) return 0;
 		let recipePart = this.shop.recipeRequires(resource_type);
 		if(!recipePart) return 0;
 		return recipePart[1] - this.numberHeld(resource_type);
 	}
-	numberHeld(resource_type){
-		return this.holding.filter(ing => ing.name === resource_type).length;
+	numberHeld(resource_type,previous = false){
+		let holdlist = this.holding;
+		if(previous) holdlist = this.previous_holding;
+		return holdlist.filter(ing => ing.name === resource_type).length;
 	}
 	craft(){
 		for(let part of this.shop.recipe.input){
@@ -1018,12 +1074,25 @@ class ShopOutput extends Giver{
 		this.shop = shop;
 		this.tiles.forEach(tile => tile.interactable = this);
 	}
+	pic_list(previous=false){//[[resource_name,is_present],...]
+		let array = [],
+			pair = this.shop.recipe.output,
+			count = this.resource_count;
+		if(previous) count = this.previous_resource_count;
+		for(let i=0; i<count; ++i){
+			array.push([pair[0],true]);
+		}
+		for(let i=0; i<this.shop.recipe.output[1]-count; ++i){
+			array.push([pair[0],false]);
+		}
+		return array;		
+	}
 	get tiles(){
 		if(this.shop === undefined) return [{interactable:null}];//needed for bootstrapping
 		
-		let mymatrix = [ [0, ],
-						 [ , ] ];
-		for(let i=0; i< ["NW","NE","SE","SW"].indexOf(this.shop.direction); ++i){
+		let mymatrix = [ [0   ,null   ],
+						 [null,null   ] ];
+		for(let i=0; i< ["NW","NE","SE","SW"].indexOf(this.shop.rotation); ++i){
 			mymatrix=rotateMatrix(mymatrix);
 		}
 		return this.shop.corner.neighborsFromMatrix(mymatrix,[0,0]);
@@ -1083,8 +1152,14 @@ class Resource{
 			  return document.getElementById("berry");
 			case "wood":
 			  return document.getElementById("wood");
+			case "steak":
+				return document.getElementById("steak");
+			case "bread":
+				return document.getElementById("bread");
+			case "perfume":
+				return document.getElementById("perfume");
 			default:
-				return document.getElementById("berry");
+				return document.getElementById("undefined_item");
 		}
 	}
 	toString(){
@@ -1380,6 +1455,49 @@ class Game_window {
 	
     this.drawAt(graphic,x,y,spriteData);
   }
+  draw_shop_inventory_at(x,y,fraction=1){	  
+	  let tile = this.board.tileAt(x,y);
+	  let shopOut = tile.interactable;
+	  if(!(shopOut instanceof ShopOutput)) return;
+	  
+	  let horizontal_sep = this.tileWidth/3,
+		  vertical_sep = this.tileHeight/2,
+		  shop = shopOut.shop;
+		  
+	  let ctx = this.context;
+	  ctx.save();
+	  ctx.translate(shop.center_offset[0]*this.tileWidth,shop.center_offset[1]*this.tileHeight);
+	  
+	  let outlist = shop.output.pic_list(fraction<1.5);
+	  let inlist = shop.input.pic_list(fraction<1.5);
+	  	  
+	  ctx.save();
+	  ctx.translate(-horizontal_sep * (outlist.length-1)/2,-vertical_sep/2);
+	  for(let pair of outlist){
+		  if(pair[1]){
+			  ctx.globalAlpha=1;
+		  } else {
+			  ctx.globalAlpha=0.5;
+		  }
+		  let resource = new Resource(pair[0]);
+		  this.drawAt(resource.graphic,x,y);
+		  ctx.translate(horizontal_sep,0);
+	  }
+	  ctx.restore();
+	  ctx.translate(-horizontal_sep*(inlist.length-1)/2,vertical_sep/2);
+	  for(let pair of inlist){
+		  if(pair[1]){
+			  ctx.globalAlpha=1;
+		  } else {
+			  ctx.globalAlpha=0.5;
+		  }
+		  let resource = new Resource(pair[0]);
+		  this.drawAt(resource.graphic,x,y);
+		  ctx.translate(horizontal_sep,0);
+	  }
+	  
+	  ctx.restore();
+  }
   hop_path(start,end,fraction){//feed this objects with x and y
     var jumpheight = 60;
     var obj ={
@@ -1409,32 +1527,34 @@ class Game_window {
     this.do_everywhere_visible(this.draw_road_at);
     this.do_everywhere_visible(this.draw_house_at);
     this.do_everywhere_visible(this.draw_interactable_at,fraction*3);
-    this.do_everywhere_visible(this.draw_flans_at,fraction*3);    
+    this.do_everywhere_visible(this.draw_flans_at,fraction*3);
+    this.do_everywhere_visible(this.draw_shop_inventory_at,fraction*3);    
   }
 }
 
 var b = null;
 $(document).ready(function(){
   b = new Board(7,6);
-
-  b.tileAt(1,4).floor="r";
-  b.tileAt(2,1).floor="r";
-  b.tileAt(2,2).floor="r";
-  b.tileAt(2,4).floor="r";
-  b.tileAt(3,1).floor="r";
-  b.tileAt(3,2).floor="r";
-  b.tileAt(3,3).floor="r";
-  b.tileAt(3,4).floor="r";
-  var h1 = new House(b.tileAt(0,4),"E","1"),
-	h2 = new House(b.tileAt(1,5),"S","2"),
-	h3 = new House(b.tileAt(1,3),"N","3"),
-	h4 = new House(b.tileAt(2,3),"N","4");
-
-  b.tileAt(4,4).interact_toggle(Tree);
-  b.tileAt(-1,2).interact_toggle(Castle);
-  b.tileAt(2,0).interact_toggle(Berry_Bush);
-  b.tileAt(2,5).interact_toggle(Berry_Bush);
-  b.tileAt(4,2).shop_toggle(RECIPES["bread"]);
+	
+  b.tileAt(5,1).interact_toggle(Castle);
+  b.tileAt(2,2).shop_toggle(RECIPES["steak"]);
+  b.tileAt(1,1).house_toggle().house.rotate().rotate();
+  b.tileAt(5,4).house_toggle().house.rotate().rotate();
+  b.tileAt(0,3).house_toggle().house.rotate();
+  b.tileAt(1,4).interact_toggle(Berry_Bush);
+  b.tileAt(4,5).interact_toggle(Tree);
+  b.tileAt(4,2).interact_toggle(Tree);
+  b.tileAt(1,0).road_toggle();
+  b.tileAt(2,0).road_toggle();
+  b.tileAt(1,2).road_toggle();
+  b.tileAt(1,3).road_toggle();
+  b.tileAt(1,5).road_toggle();
+  b.tileAt(2,5).road_toggle();
+  b.tileAt(3,3).road_toggle();
+  b.tileAt(3,4).road_toggle();
+  b.tileAt(4,3).road_toggle();
+  b.tileAt(4,4).road_toggle();
+  b.tileAt(5,3).road_toggle();
 
   b.render();
   setInterval(function(){
@@ -1471,6 +1591,14 @@ $(document).ready(function(){
         b.selected_tool = "berry_bush_toggle";
         b.update_tool_display();
     });
+    $("#shop_toggle").click(function(){
+        b.selected_tool = "shop_toggle";
+        b.update_tool_display();
+    });
+    $("#shop_rotate").click(function(){
+        b.selected_tool = "shop_rotate";
+        b.update_tool_display();
+    });
 });
 
 </script>
@@ -1492,7 +1620,15 @@ $(document).ready(function(){
  <button id="tree_toggle"> Tree Toggle </button>
  <button id="castle_toggle"> Castle Toggle </button>
  <button id="berry_bush_toggle"> Berry Bush Toggle </button>
+ <button id="shop_toggle"> Shop Toggle </button>
+ <button id="shop_rotate"> Shop Rotate </button>
  </div>
+ <form id="recipe_select">
+ Recipe input: 
+ <input name="recipe_radio" type="radio" value="bread" checked="checked">bread
+ <input name="recipe_radio" type="radio" value="perfume">perfume
+ <input name="recipe_radio" type="radio" value="steak">steak
+ </form>
  <div id="selected_tool">
  </div>
 
@@ -1519,6 +1655,14 @@ $(document).ready(function(){
  <img id="tree_1" src=resources/tree/tree_1.png>
  <img id="berry" src=resources/berry.png>
  <img id="wood" src=resources/wood.png>
+ <img id="undefined_item" src=resources/undefined_item.png>
+ <img id="steak" src=resources/steak.png>
+ <img id="bread" src=resources/bread.png>
+ <img id="shop_ne" src=resources/shop/shop_ne.png>
+ <img id="shop_nw" src=resources/shop/shop_nw.png>
+ <img id="shop_se" src=resources/shop/shop_se.png>
+ <img id="shop_sw" src=resources/shop/shop_sw.png>
+ <img id="perfume" src=resources/perfume.png>
  </p>
 
 </body>
