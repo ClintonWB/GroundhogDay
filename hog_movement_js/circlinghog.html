@@ -1268,6 +1268,16 @@ class Game_window {
                            this.tileWidth,
                            this.tileHeight);
   }
+  drawResourceAt(resource_name,x,y){
+	let resource = new Resource(resource_name),
+		graphic = resource.graphic;
+	this.context.drawImage(graphic,
+						   //...spriteData,
+                           this.skewed_position_x(x,y)-(this.tileWidth/4),
+                           this.skewed_position_y(x,y),
+                           this.tile_size*0.8,
+                           this.tile_size*0.8);
+  }
   draw_floor_at(x,y){
 	this.drawAt(document.getElementById("grass"),x,y);
   }
@@ -1453,12 +1463,12 @@ class Game_window {
 	
     this.drawAt(graphic,x,y,spriteData);
   }
-  draw_shop_inventory_at(x,y,fraction=1){	  
+  draw_shop_inventory_at(x,y,fraction=3){	  
 	  let tile = this.board.tileAt(x,y);
 	  let shopOut = tile.interactable;
 	  if(!(shopOut instanceof ShopOutput)) return;
 	  
-	  let horizontal_sep = this.tileWidth/3,
+	  let horizontal_sep = this.tileWidth/4,
 		  vertical_sep = this.tileHeight/2,
 		  shop = shopOut.shop;
 		  
@@ -1466,8 +1476,8 @@ class Game_window {
 	  ctx.save();
 	  ctx.translate(shop.center_offset[0]*this.tileWidth,shop.center_offset[1]*this.tileHeight);
 	  
-	  let outlist = shop.output.pic_list(fraction<1.5);
-	  let inlist = shop.input.pic_list(fraction<1.5);
+	  let outlist = shop.output.pic_list(fraction<2);
+	  let inlist = shop.input.pic_list(fraction<2);
 	  	  
 	  ctx.save();
 	  ctx.translate(-horizontal_sep * (outlist.length-1)/2,-vertical_sep/2);
@@ -1477,8 +1487,7 @@ class Game_window {
 		  } else {
 			  ctx.globalAlpha=0.5;
 		  }
-		  let resource = new Resource(pair[0]);
-		  this.drawAt(resource.graphic,x,y);
+		  this.drawResourceAt(pair[0],x,y);
 		  ctx.translate(horizontal_sep,0);
 	  }
 	  ctx.restore();
@@ -1489,8 +1498,7 @@ class Game_window {
 		  } else {
 			  ctx.globalAlpha=0.5;
 		  }
-		  let resource = new Resource(pair[0]);
-		  this.drawAt(resource.graphic,x,y);
+		  this.drawResourceAt(pair[0],x,y);
 		  ctx.translate(horizontal_sep,0);
 	  }
 	  
